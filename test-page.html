@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Click Custodian Test Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+
+    .section {
+      background: white;
+      padding: 30px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      color: #2c3e50;
+    }
+
+    h2 {
+      color: #34495e;
+      margin-top: 0;
+    }
+
+    button {
+      padding: 12px 24px;
+      margin: 8px;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #3498db;
+      color: white;
+    }
+
+    .btn-success {
+      background: #2ecc71;
+      color: white;
+    }
+
+    .btn-danger {
+      background: #e74c3c;
+      color: white;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .status {
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 4px;
+      display: none;
+    }
+
+    .status.show {
+      display: block;
+    }
+
+    .status.success {
+      background: #d5f4e6;
+      color: #27ae60;
+      border: 1px solid #2ecc71;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      font-size: 14px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      width: 300px;
+      margin-right: 10px;
+    }
+
+    .code {
+      background: #f8f8f8;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      margin: 10px 0;
+    }
+
+    .instructions {
+      background: #fff3cd;
+      padding: 15px;
+      border-radius: 4px;
+      border-left: 4px solid #ffc107;
+      margin: 15px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Click Custodian Test Page</h1>
+
+  <div class="section">
+    <h2>Test Auto-Close Feature</h2>
+    <div class="instructions">
+      <strong>How to test:</strong>
+      <ol>
+        <li>Add a close rule with this URL pattern: <code>*://*/test-page.html*</code></li>
+        <li>Reload this page</li>
+        <li>You should see a countdown overlay</li>
+        <li>Click "Keep Tab Open" to abort, or wait for it to close</li>
+      </ol>
+    </div>
+    <p>Current URL: <code id="current-url"></code></p>
+  </div>
+
+  <div class="section">
+    <h2>Test Button Auto-Click</h2>
+    <div class="instructions">
+      <strong>How to test:</strong>
+      <ol>
+        <li>Add a button click rule with:
+          <ul>
+            <li>URL pattern: <code>*://*/test-page.html*</code></li>
+            <li>CSS Selector: <code>.test-button</code></li>
+            <li>Button Text: "Click Me"</li>
+          </ul>
+        </li>
+        <li>Reload this page</li>
+        <li>The button should be auto-clicked after the delay</li>
+      </ol>
+    </div>
+
+    <button class="btn-primary test-button" onclick="handleTestClick()">Click Me</button>
+    <button class="btn-success" id="continue-btn" onclick="handleContinueClick()">Continue</button>
+    <button class="btn-danger" onclick="handleCancelClick()">Cancel</button>
+
+    <div id="click-status" class="status"></div>
+  </div>
+
+  <div class="section">
+    <h2>Test Dynamic Button</h2>
+    <div class="instructions">
+      <strong>How to test:</strong>
+      <p>This button loads after 2 seconds to test the extension's ability to wait for dynamic content.</p>
+    </div>
+
+    <div id="dynamic-button-container">
+      <p>Button will appear in <span id="countdown">2</span> seconds...</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Test Form Submission</h2>
+    <div class="instructions">
+      <strong>How to test:</strong>
+      <p>Configure a rule to auto-click submit buttons on this page.</p>
+    </div>
+
+    <form onsubmit="event.preventDefault(); handleFormSubmit();">
+      <input type="text" placeholder="Enter some text" id="form-input">
+      <button type="submit" class="btn-success">Submit</button>
+    </form>
+
+    <div id="form-status" class="status"></div>
+  </div>
+
+  <div class="section">
+    <h2>Test Multiple Buttons</h2>
+    <div class="instructions">
+      <strong>How to test:</strong>
+      <p>Test button text matching when multiple buttons exist.</p>
+    </div>
+
+    <button class="btn-primary">Button 1</button>
+    <button class="btn-primary">Button 2</button>
+    <button class="btn-primary" onclick="handleSpecificClick()">Special Button</button>
+    <button class="btn-primary">Button 4</button>
+
+    <div id="multi-status" class="status"></div>
+  </div>
+
+  <div class="section">
+    <h2>Regex Test URLs</h2>
+    <div class="instructions">
+      <strong>Test different URL patterns:</strong>
+      <p>Use these links to test different matching strategies:</p>
+    </div>
+
+    <a href="?test=confirmation">?test=confirmation</a> |
+    <a href="?page=success">?page=success</a> |
+    <a href="?status=complete">?status=complete</a> |
+    <a href="#section1">#section1</a> |
+    <a href="#confirmation">#confirmation</a>
+
+    <div class="code">
+      Current query params: <span id="query-params"></span><br>
+      Current hash: <span id="hash"></span>
+    </div>
+  </div>
+
+  <script>
+    // Display current URL
+    document.getElementById('current-url').textContent = window.location.href;
+
+    // Display query params and hash
+    const urlParams = new URLSearchParams(window.location.search);
+    const params = [];
+    urlParams.forEach((value, key) => {
+      params.push(`${key}=${value}`);
+    });
+    document.getElementById('query-params').textContent = params.join(', ') || 'none';
+    document.getElementById('hash').textContent = window.location.hash || 'none';
+
+    // Button click handlers
+    function handleTestClick() {
+      showStatus('click-status', 'Test button clicked!', 'success');
+    }
+
+    function handleContinueClick() {
+      showStatus('click-status', 'Continue button clicked!', 'success');
+    }
+
+    function handleCancelClick() {
+      showStatus('click-status', 'Cancel button clicked!', 'success');
+    }
+
+    function handleFormSubmit() {
+      const input = document.getElementById('form-input');
+      showStatus('form-status', `Form submitted with: "${input.value}"`, 'success');
+      input.value = '';
+    }
+
+    function handleSpecificClick() {
+      showStatus('multi-status', 'Special button clicked!', 'success');
+    }
+
+    function showStatus(elementId, message, type) {
+      const statusEl = document.getElementById(elementId);
+      statusEl.textContent = message;
+      statusEl.className = `status ${type} show`;
+
+      setTimeout(() => {
+        statusEl.className = 'status';
+      }, 3000);
+    }
+
+    // Dynamic button - loads after 2 seconds
+    let countdown = 2;
+    const countdownEl = document.getElementById('countdown');
+    const interval = setInterval(() => {
+      countdown--;
+      if (countdown <= 0) {
+        clearInterval(interval);
+        document.getElementById('dynamic-button-container').innerHTML = `
+          <button class="btn-success dynamic-button" onclick="handleDynamicClick()">
+            Dynamic Button (Loaded!)
+          </button>
+          <div id="dynamic-status" class="status"></div>
+        `;
+      } else {
+        countdownEl.textContent = countdown;
+      }
+    }, 1000);
+
+    function handleDynamicClick() {
+      showStatus('dynamic-status', 'Dynamic button clicked!', 'success');
+    }
+
+    // Log when page loads
+    console.log('[Test Page] Page loaded at:', new Date().toISOString());
+    console.log('[Test Page] URL:', window.location.href);
+
+    // Listen for clicks to help debugging
+    document.addEventListener('click', (e) => {
+      if (e.target.tagName === 'BUTTON') {
+        console.log('[Test Page] Button clicked:', e.target.textContent);
+      }
+    });
+  </script>
+</body>
+</html>

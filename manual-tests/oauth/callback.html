@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AWS CLI OAuth Callback</title>
+</head>
+<body>
+  <h1>AWS CLI OAuth Callback Test</h1>
+  <p><strong>This tab should show a countdown and auto-close</strong></p>
+  <p>URL pattern match: <code>*://127.0.0.1:*/oauth/callback*</code></p>
+  <p>Current URL: <code id="current-url"></code></p>
+
+  <script>
+    document.getElementById('current-url').textContent = window.location.href;
+  </script>
+</body>
+</html>

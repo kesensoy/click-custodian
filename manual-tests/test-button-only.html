@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Button Only Test</title>
+</head>
+<body>
+  <h1>Button Only Test</h1>
+  <p>This page should auto-click the button below (with green highlight)</p>
+  <button id="test-button">Sign In</button>
+  <p id="result"></p>
+
+  <script>
+    document.getElementById('test-button').addEventListener('click', () => {
+      document.getElementById('result').textContent = 'Button was clicked!';
+      document.getElementById('result').style.color = 'green';
+    });
+  </script>
+</body>
+</html>

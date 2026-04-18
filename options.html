@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Click Custodian Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-content">
+        <div>
+          <h1>Click Custodian Settings</h1>
+          <p class="subtitle">Manage auto-close rules and button click automation</p>
+        </div>
+      </div>
+    </header>
+
+    <div id="unsaved-banner" class="unsaved-banner" style="display: none;">
+      ⚠️ You have unsaved changes
+    </div>
+
+    <!-- Tab Navigation -->
+    <nav class="tabs-nav" role="tablist">
+      <button
+        class="tab-button active"
+        role="tab"
+        aria-selected="true"
+        aria-controls="close-rules-panel"
+        data-tab="close-rules"
+        id="tab-close-rules">
+        <span class="tab-icon">🚪</span>
+        <span class="tab-label">Tab Auto-Close Rules</span>
+      </button>
+      <button
+        class="tab-button"
+        role="tab"
+        aria-selected="false"
+        aria-controls="click-rules-panel"
+        data-tab="click-rules"
+        id="tab-click-rules">
+        <span class="tab-icon">👆</span>
+        <span class="tab-label">Button Auto-Click Rules</span>
+      </button>
+    </nav>
+
+    <!-- Tab Panels Container -->
+    <div class="tab-panels">
+
+      <!-- Close Rules Panel -->
+      <div
+        class="tab-panel active"
+        id="close-rules-panel"
+        role="tabpanel"
+        aria-labelledby="tab-close-rules"
+        data-panel="close-rules">
+        <div class="panel-header">
+          <h2>Tab Auto-Close Rules</h2>
+          <button id="add-close-rule" class="btn btn-primary">+ Add Rule</button>
+        </div>
+        <div id="close-rules-list" class="rules-list"></div>
+      </div>
+
+      <!-- Click Rules Panel -->
+      <div
+        class="tab-panel"
+        id="click-rules-panel"
+        role="tabpanel"
+        aria-labelledby="tab-click-rules"
+        data-panel="click-rules">
+        <div class="panel-header">
+          <h2>Button Auto-Click Rules</h2>
+          <button id="add-click-rule" class="btn btn-primary">+ Add Rule</button>
+        </div>
+        <div id="click-rules-list" class="rules-list"></div>
+      </div>
+
+    </div>
+
+    <div class="actions">
+      <button id="save-config" class="btn btn-success">Save Changes</button>
+      <button id="reset-config" class="btn btn-danger">Reset to Defaults</button>
+      <button id="export-config" class="btn btn-secondary">Export Config</button>
+      <button id="import-config" class="btn btn-secondary">Import Config</button>
+      <input type="file" id="import-file" accept=".json" style="display: none;">
+    </div>
+
+    <div id="status-message" class="status-message"></div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "name": "click-custodian",
+  "version": "1.0.0",
+  "description": "Chrome extension to auto-close confirmation tabs and auto-click repetitive buttons",
+  "author": "Kevin Esensoy",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kesensoy/click-custodian.git"
+  },
+  "keywords": [
+    "chrome-extension",
+    "automation",
+    "productivity",
+    "tab-management",
+    "browser-extension"
+  ],
+  "scripts": {
+    "test": "jest",
+    "test:unit": "jest tests/unit",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:all": "npm run test:unit && npm run test:e2e",
+    "package": "zip -r click-custodian.zip . -x '*.git*' -x '*node_modules*' -x '*.DS_Store' -x 'package.json' -x 'test-page.html'"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
+    "jsdom": "^27.4.0"
+  }
+}

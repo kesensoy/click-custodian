@@ -1,0 +1,43 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Node modules (if you add build tools later)
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Extension packages
+*.crx
+*.pem
+*.zip
+
+# Logs
+*.log
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Test output files
+test-results.txt
+coverage/
+
+# Serena MCP tool config
+.serena/
+
+# Personal AI/dev tooling
+.claude/
+.mcp.json
+.coderabbit.yaml
+.swissarmyhammer/
+
+# Local AI workflow artifacts (specs, plans, transcripts)
+docs/superpowers/

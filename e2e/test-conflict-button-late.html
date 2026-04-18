@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Conflict Test - Button Appears Late</title>
+</head>
+<body>
+  <h1>Test Page: Button Appears After 1.5s</h1>
+  <div id="button-container"></div>
+
+  <script>
+    // Inject button after 1.5 seconds
+    setTimeout(function() {
+      const button = document.createElement('button');
+      button.id = 'test-button';
+      button.textContent = 'Click Me';
+
+      button.addEventListener('click', function() {
+        this.setAttribute('data-clicked', 'true');
+        console.log('Button clicked!');
+      });
+
+      document.getElementById('button-container').appendChild(button);
+    }, 1500);
+  </script>
+</body>
+</html>

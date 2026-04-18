@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Conflict Test - Button Present</title>
+</head>
+<body>
+  <h1>Conflict Resolution Test - Button Present</h1>
+  <p>Both button rule AND close rule match this URL</p>
+  <p>Button IS present → Should click button, NO countdown</p>
+  <button id="test-button">Sign In</button>
+  <p id="result"></p>
+
+  <script>
+    document.getElementById('test-button').addEventListener('click', () => {
+      document.getElementById('result').textContent = 'Button was clicked! Tab should stay open.';
+      document.getElementById('result').style.color = 'green';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Conflict Test - Button Exists</title>
+</head>
+<body>
+  <h1>Test Page: Button Exists Immediately</h1>
+  <button id="test-button">Click Me</button>
+
+  <script>
+    // Track button clicks
+    document.getElementById('test-button').addEventListener('click', function() {
+      this.setAttribute('data-clicked', 'true');
+      console.log('Button clicked!');
+    });
+  </script>
+</body>
+</html>
