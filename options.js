@@ -1,836 +1,618 @@
-// Options page script
+// Options page for Click Custodian — Direction D layout
+// (sidebar + grid-aligned rule rows + sticky action bar + dark mode)
 
-let defaultRules = null;
-let userRules = null;
+// ---------- State ----------
+let defaultRules = { tabCloseRules: [], buttonClickRules: [] };
+let userRules = { tabCloseRules: [], buttonClickRules: [] };
 let defaultRulesEnabled = {};
 let hasUnsavedChanges = false;
-let currentTab = 'close-rules'; // Track active tab
+let currentPage = 'page-close';
+let currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
 
-// Load configuration on page load
+// ---------- Entry ----------
 document.addEventListener('DOMContentLoaded', async () => {
   await loadConfig();
-  renderRules();
-  attachEventListeners();
+  renderAll();
+  attachGlobalListeners();
+  restoreActivePage();
 });
 
-// Warn before leaving page with unsaved changes
 window.addEventListener('beforeunload', (e) => {
-  if (hasUnsavedChanges) {
-    e.preventDefault();
-    e.returnValue = '';
-    return '';
-  }
+  if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = ''; return ''; }
 });
 
-// Load config from storage
+// ---------- Storage ----------
 async function loadConfig() {
-  const storage = await chrome.storage.sync.get(['defaultRules', 'userRules', 'defaultRulesEnabled']);
+  const storage = await chrome.storage.sync.get(['defaultRules', 'userRules', 'defaultRulesEnabled', 'theme']);
   defaultRules = storage.defaultRules || { tabCloseRules: [], buttonClickRules: [] };
   userRules = storage.userRules || { tabCloseRules: [], buttonClickRules: [] };
   defaultRulesEnabled = storage.defaultRulesEnabled || {};
-}
-
-// Mark configuration as having unsaved changes
-function markDirty() {
-  hasUnsavedChanges = true;
-  const banner = document.getElementById('unsaved-banner');
-  if (banner) {
-    banner.style.display = 'block';
+  if (storage.theme && storage.theme !== currentTheme) {
+    currentTheme = storage.theme;
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    try { localStorage.setItem('cc-theme', currentTheme); } catch (e) {}
   }
 }
 
-// Mark configuration as saved
-function markClean() {
-  hasUnsavedChanges = false;
-  const banner = document.getElementById('unsaved-banner');
-  if (banner) {
-    banner.style.display = 'none';
-  }
-}
-
-// Generate unique ID
-function generateId() {
-  return 'rule_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-}
-
-// Generate a smart default name from URL pattern
-function generateDefaultRuleName(urlPattern) {
+async function saveConfig() {
   try {
-    // Remove glob wildcards for cleaner display
-    let cleanPattern = urlPattern.replace(/^\*:\/\//, '').replace(/\/\*$/g, '');
-
-    // Try to extract domain/host
-    const urlMatch = cleanPattern.match(/^([^\/]+)/);
-    if (urlMatch) {
-      let domain = urlMatch[1];
-
-      // Add path if it's meaningful
-      const pathMatch = cleanPattern.match(/^[^\/]+\/(.+)/);
-      if (pathMatch && pathMatch[1]) {
-        const path = pathMatch[1].replace(/\*/g, '').trim();
-        if (path && path !== '/' && path !== '') {
-          domain += '/' + path;
-        }
-      }
-
-      return domain;
-    }
-
-    // Fallback to cleaned pattern
-    return cleanPattern || 'example.com';
-  } catch (e) {
-    return 'example.com';
+    await chrome.storage.sync.set({ userRules, defaultRulesEnabled });
+    markClean();
+    showStatus('Configuration saved', 'success');
+  } catch (error) {
+    showStatus('Failed to save: ' + error.message, 'error');
   }
 }
 
-// Escape HTML to prevent XSS attacks
+async function saveTheme(theme) {
+  try { await chrome.storage.sync.set({ theme }); } catch (e) {}
+}
+
+// ---------- Helpers ----------
 function escapeHTML(str) {
   if (str == null) return '';
   return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// Clamp delay value to valid range, with fallback for invalid input
 function clampDelay(value, min, max, fallback) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, Math.trunc(n)));
 }
 
-// Render all rules
-function renderRules() {
+function generateId() {
+  return 'rule_' + Date.now() + '_' + Math.random().toString(36).slice(2, 11);
+}
+
+function generateDefaultRuleName(urlPattern) {
+  try {
+    let cleaned = urlPattern.replace(/^\*:\/\//, '').replace(/\/\*$/g, '');
+    const host = cleaned.match(/^([^\/]+)/);
+    if (host) {
+      let name = host[1];
+      const path = cleaned.match(/^[^\/]+\/(.+)/);
+      if (path && path[1]) {
+        const p = path[1].replace(/\*/g, '').trim();
+        if (p && p !== '/' && p !== '') name += '/' + p;
+      }
+      return name;
+    }
+    return cleaned || 'example.com';
+  } catch (e) { return 'example.com'; }
+}
+
+function markDirty() {
+  hasUnsavedChanges = true;
+  const info = document.getElementById('actionbar-info');
+  const text = document.getElementById('actionbar-info-text');
+  info.classList.remove('is-clean');
+  text.textContent = 'unsaved changes';
+}
+
+function markClean() {
+  hasUnsavedChanges = false;
+  const info = document.getElementById('actionbar-info');
+  const text = document.getElementById('actionbar-info-text');
+  info.classList.add('is-clean');
+  text.textContent = 'saved';
+}
+
+function showStatus(message, type) {
+  const el = document.getElementById('status-message');
+  el.textContent = message;
+  el.className = `status-message ${type}`;
+  setTimeout(() => { el.className = 'status-message'; }, 2600);
+}
+
+// ---------- Rendering ----------
+function renderAll() {
   renderCloseRules();
   renderClickRules();
+  updateNavCounts();
 }
 
-// Render tab close rules
+function updateNavCounts() {
+  const closeCount = defaultRules.tabCloseRules.length + userRules.tabCloseRules.length;
+  const clickCount = defaultRules.buttonClickRules.length + userRules.buttonClickRules.length;
+  document.getElementById('nav-close-count').textContent = closeCount;
+  document.getElementById('nav-click-count').textContent = clickCount;
+}
+
+function pluralRules(n) { return `${n} rule${n === 1 ? '' : 's'}`; }
+
 function renderCloseRules() {
-  const container = document.getElementById('close-rules-list');
-  container.innerHTML = '';
+  const defList = document.getElementById('close-default-list');
+  const usrList = document.getElementById('close-user-list');
+  const defHead = document.getElementById('close-default-head');
+  const defCount = document.getElementById('close-default-count');
+  const usrCount = document.getElementById('close-user-count');
 
-  // Render default rules first
-  if (defaultRules.tabCloseRules.length > 0) {
-    const defaultHeader = document.createElement('h3');
-    defaultHeader.className = 'rules-section-header';
-    defaultHeader.innerHTML = '📌 Default Rules';
-    container.appendChild(defaultHeader);
-
-    defaultRules.tabCloseRules.forEach((rule) => {
-      const ruleCard = createDefaultCloseRuleCard(rule);
-      container.appendChild(ruleCard);
-    });
-  }
-
-  // Render user rules
-  if (userRules.tabCloseRules.length > 0) {
-    const userHeader = document.createElement('h3');
-    userHeader.className = 'rules-section-header';
-    userHeader.textContent = 'Your Custom Rules';
-    container.appendChild(userHeader);
-
-    userRules.tabCloseRules.forEach((rule, index) => {
-      const ruleCard = createUserCloseRuleCard(rule, index);
-      container.appendChild(ruleCard);
-    });
-  } else if (defaultRules.tabCloseRules.length > 0) {
-    const emptyMessage = document.createElement('p');
-    emptyMessage.className = 'help-text';
-    emptyMessage.textContent = 'No custom rules yet. Add one to get started!';
-    container.appendChild(emptyMessage);
+  // Default rules
+  defList.innerHTML = '';
+  const defaults = defaultRules.tabCloseRules;
+  defCount.textContent = pluralRules(defaults.length);
+  if (defaults.length === 0) {
+    defHead.style.display = 'none';
+    defList.style.display = 'none';
   } else {
-    container.innerHTML = '<p class="help-text">No tab close rules configured. Add one to get started!</p>';
+    defHead.style.display = '';
+    defList.style.display = '';
+    defList.appendChild(closeHeaderRow());
+    defaults.forEach(rule => defList.appendChild(renderDefaultCloseRow(rule)));
   }
+
+  // User rules
+  usrList.innerHTML = '';
+  const users = userRules.tabCloseRules;
+  usrCount.textContent = pluralRules(users.length);
+  if (users.length > 0) {
+    usrList.appendChild(closeHeaderRow());
+    users.forEach((rule, index) => usrList.appendChild(renderUserCloseRow(rule, index)));
+  }
+  usrList.appendChild(addRow('close', 'Add a tab-close rule'));
 }
 
-// Create default tab close rule card (read-only except toggle)
-function createDefaultCloseRuleCard(rule) {
-  const isEnabled = defaultRulesEnabled[rule.id] !== false;
-  const card = document.createElement('div');
-  card.className = 'rule-card rule-card-default';
-  card.innerHTML = `
-    <div class="rule-header">
-      <div class="rule-title">
-        <span class="rule-name">${escapeHTML(rule.name)}</span>
-      </div>
-      <div class="rule-actions">
-        <label class="toggle-switch">
-          <input type="checkbox" ${isEnabled ? 'checked' : ''} data-rule-id="${escapeHTML(rule.id)}" class="default-rule-toggle">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-    <div class="rule-body">
-      <div class="form-group form-group-full">
-        <label>URL Pattern</label>
-        <div class="readonly-field">${escapeHTML(rule.urlPattern)}</div>
-      </div>
-      <div class="form-group">
-        <label>Match Type</label>
-        <div class="readonly-field">${escapeHTML(rule.matchType)}</div>
-      </div>
-      <div class="form-group">
-        <label>Delay</label>
-        <div class="readonly-field">${escapeHTML(rule.delay)}ms</div>
-      </div>
-    </div>
-  `;
-  return card;
-}
-
-// Create user tab close rule card (fully editable)
-function createUserCloseRuleCard(rule, index) {
-  const card = document.createElement('div');
-  card.className = 'rule-card';
-  card.innerHTML = `
-    <div class="rule-header">
-      <div class="rule-title">
-        <label style="font-size: 11px; color: #7f8c8d; margin-bottom: 4px; display: block;">Rule Name</label>
-        <input type="text" value="${escapeHTML(rule.name)}" data-index="${index}" data-field="name" class="user-close-rule-input" placeholder="Enter a descriptive name" style="margin-bottom: 4px;">
-        <span class="help-text">Give this rule a name for easy identification</span>
-      </div>
-      <div class="rule-actions">
-        <label class="toggle-switch">
-          <input type="checkbox" ${rule.enabled ? 'checked' : ''} data-index="${index}" data-field="enabled" class="user-close-rule-input">
-          <span class="toggle-slider"></span>
-        </label>
-        <button class="btn btn-danger btn-small delete-user-close-rule" data-index="${index}">Delete</button>
-      </div>
-    </div>
-    <div class="rule-body">
-      <div class="form-group form-group-full">
-        <label>URL Pattern</label>
-        <input type="text" value="${escapeHTML(rule.urlPattern)}" data-index="${index}" data-field="urlPattern" class="user-close-rule-input">
-        <span class="help-text">Use * for wildcards (e.g., *://example.com/*)</span>
-      </div>
-      <div class="form-group">
-        <label>Match Type</label>
-        <select data-index="${index}" data-field="matchType" class="user-close-rule-input">
-          <option value="glob" ${rule.matchType === 'glob' ? 'selected' : ''}>Glob Pattern</option>
-          <option value="regex" ${rule.matchType === 'regex' ? 'selected' : ''}>Regular Expression</option>
-          <option value="exact" ${rule.matchType === 'exact' ? 'selected' : ''}>Exact Match</option>
-          <option value="contains" ${rule.matchType === 'contains' ? 'selected' : ''}>Contains</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Delay (milliseconds)</label>
-        <input type="number" value="${rule.delay}" min="0" step="100" data-index="${index}" data-field="delay" class="user-close-rule-input">
-        <span class="help-text">Time before tab closes (default: 3000)</span>
-      </div>
-    </div>
-  `;
-  return card;
-}
-
-// Render button click rules
 function renderClickRules() {
-  const container = document.getElementById('click-rules-list');
-  container.innerHTML = '';
+  const defList = document.getElementById('click-default-list');
+  const usrList = document.getElementById('click-user-list');
+  const defHead = document.getElementById('click-default-head');
+  const defCount = document.getElementById('click-default-count');
+  const usrCount = document.getElementById('click-user-count');
 
-  // Render default rules first
-  if (defaultRules.buttonClickRules.length > 0) {
-    const defaultHeader = document.createElement('h3');
-    defaultHeader.className = 'rules-section-header';
-    defaultHeader.innerHTML = '📌 Default Rules';
-    container.appendChild(defaultHeader);
-
-    defaultRules.buttonClickRules.forEach((rule) => {
-      const ruleCard = createDefaultClickRuleCard(rule);
-      container.appendChild(ruleCard);
-    });
-  }
-
-  // Render user rules
-  if (userRules.buttonClickRules.length > 0) {
-    const userHeader = document.createElement('h3');
-    userHeader.className = 'rules-section-header';
-    userHeader.textContent = 'Your Custom Rules';
-    container.appendChild(userHeader);
-
-    userRules.buttonClickRules.forEach((rule, index) => {
-      const ruleCard = createUserClickRuleCard(rule, index);
-      container.appendChild(ruleCard);
-    });
-  } else if (defaultRules.buttonClickRules.length > 0) {
-    const emptyMessage = document.createElement('p');
-    emptyMessage.className = 'help-text';
-    emptyMessage.textContent = 'No custom rules yet. Add one to get started!';
-    container.appendChild(emptyMessage);
+  // Default rules — may be 0, in which case show the "none ship by default" note
+  defList.innerHTML = '';
+  const defaults = defaultRules.buttonClickRules;
+  defCount.textContent = pluralRules(defaults.length);
+  defHead.style.display = '';
+  defList.style.display = '';
+  if (defaults.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-default';
+    empty.textContent = '// no built-in button-click rules ship with the extension';
+    defList.appendChild(empty);
   } else {
-    container.innerHTML = '<p class="help-text">No button click rules configured. Add one to get started!</p>';
+    defList.appendChild(clickHeaderRow());
+    defaults.forEach(rule => defList.appendChild(renderDefaultClickRow(rule)));
   }
+
+  // User rules
+  usrList.innerHTML = '';
+  const users = userRules.buttonClickRules;
+  usrCount.textContent = pluralRules(users.length);
+  if (users.length > 0) {
+    usrList.appendChild(clickHeaderRow());
+    users.forEach((rule, index) => usrList.appendChild(renderUserClickRow(rule, index)));
+  }
+  usrList.appendChild(addRow('click', 'Add a button-click rule'));
 }
 
-// Create default button click rule card (read-only except toggle)
-function createDefaultClickRuleCard(rule) {
-  const isEnabled = defaultRulesEnabled[rule.id] !== false;
-  const card = document.createElement('div');
-  card.className = 'rule-card rule-card-default';
-  card.innerHTML = `
-    <div class="rule-header">
-      <div class="rule-title">
-        <span class="rule-name">${escapeHTML(rule.name)}</span>
-      </div>
-      <div class="rule-actions">
-        <label class="toggle-switch">
-          <input type="checkbox" ${isEnabled ? 'checked' : ''} data-rule-id="${escapeHTML(rule.id)}" class="default-rule-toggle">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-    <div class="rule-body">
-      <div class="form-group form-group-full">
-        <label>URL Pattern</label>
-        <div class="readonly-field">${escapeHTML(rule.urlPattern)}</div>
-      </div>
-      <div class="form-group">
-        <label>Match Type</label>
-        <div class="readonly-field">${escapeHTML(rule.matchType)}</div>
-      </div>
-      <div class="form-group">
-        <label>CSS Selector</label>
-        <div class="readonly-field">${escapeHTML(rule.selector)}</div>
-      </div>
-      <div class="form-group">
-        <label>Button Text</label>
-        <div class="readonly-field">${escapeHTML(rule.buttonText || '(any)')}</div>
-      </div>
-      <div class="form-group">
-        <label>Delay</label>
-        <div class="readonly-field">${escapeHTML(rule.delay)}ms</div>
-      </div>
-    </div>
+function closeHeaderRow() {
+  const row = document.createElement('div');
+  row.className = 'rule-row header grid-close';
+  row.innerHTML = `<span>Name</span><span>URL pattern</span><span>Match</span><span>Delay</span><span style="text-align:center">On</span><span></span>`;
+  return row;
+}
+
+function clickHeaderRow() {
+  const row = document.createElement('div');
+  row.className = 'rule-row header grid-click';
+  row.innerHTML = `<span>Name</span><span>URL pattern</span><span>Selector</span><span>Button text</span><span>Delay</span><span style="text-align:center">On</span><span></span>`;
+  return row;
+}
+
+function renderDefaultCloseRow(rule) {
+  const enabled = defaultRulesEnabled[rule.id] !== false;
+  const row = document.createElement('div');
+  row.className = `rule-row grid-close is-default${enabled ? '' : ' is-disabled'}`;
+  row.dataset.defaultId = rule.id;
+  row.dataset.kind = 'default-close';
+  row.innerHTML = `
+    <div class="cell-name"><span class="pill pill-builtin"><svg><use href="#i-star"/></svg>Built-in</span><span class="nm">${escapeHTML(rule.name)}</span></div>
+    <input class="inline" readonly value="${escapeHTML(rule.urlPattern)}" />
+    <span><span class="pill pill-match">${escapeHTML(rule.matchType)}</span></span>
+    <div class="cell-delay"><input class="inline" readonly value="${escapeHTML(rule.delay)}" /><span class="unit">ms</span></div>
+    <span class="toggle${enabled ? ' on' : ''}" role="switch" aria-checked="${enabled}" tabindex="0" data-default-toggle="${escapeHTML(rule.id)}"></span>
+    <div class="row-actions"><button class="icon-btn" title="Locked — built-in rule"><svg width="13" height="13"><use href="#i-lock"/></svg></button></div>
   `;
-  return card;
+  return row;
 }
 
-// Helper to parse selector into presets and custom selectors
-function parseSelector(selector) {
-  if (!selector) return { presets: ['button'], custom: [] };
-
-  const presets = ['button', 'a', 'input[type="button"]', 'input[type="submit"]', '[role="button"]'];
-  const parts = selector.split(',').map(s => s.trim());
-
-  const matchedPresets = [];
-  const customSelectors = [];
-
-  parts.forEach(part => {
-    if (presets.includes(part)) {
-      matchedPresets.push(part);
-    } else {
-      customSelectors.push(part);
-    }
-  });
-
-  // Default to 'button' if nothing matched
-  return {
-    presets: matchedPresets.length > 0 ? matchedPresets : ['button'],
-    custom: customSelectors
-  };
-}
-
-// Helper to generate selector checkboxes
-function generateSelectorCheckboxes(selector, index) {
-  const { presets } = parseSelector(selector);
-  const options = [
-    { value: 'button', label: 'button' },
-    { value: 'a', label: 'a' },
-    { value: 'input[type="button"]', label: 'input[type="button"]' },
-    { value: 'input[type="submit"]', label: 'input[type="submit"]' },
-    { value: '[role="button"]', label: '[role="button"]' }
-  ];
-
-  return options.map(opt => `
-    <label class="selector-checkbox">
-      <input type="checkbox" value="${escapeHTML(opt.value)}" data-index="${index}" class="selector-preset-checkbox" ${presets.includes(opt.value) ? 'checked' : ''}>
-      <span>${escapeHTML(opt.label)}</span>
-    </label>
-  `).join('');
-}
-
-// Helper to render custom selector inputs
-function renderCustomSelectors(selector, index) {
-  const { custom } = parseSelector(selector);
-
-  if (custom.length === 0) return '';
-
-  return custom.map((sel, i) => `
-    <div class="custom-selector-row">
-      <input type="text" value="${escapeHTML(sel)}" data-index="${index}" data-custom-index="${i}" class="custom-selector-input" placeholder="e.g., button.submit">
-      <button class="btn btn-danger btn-xs remove-custom-selector" data-index="${index}" data-custom-index="${i}">×</button>
-    </div>
-  `).join('');
-}
-
-// Helper to update rule selector from UI checkboxes and custom inputs
-function updateSelectorFromUI(index) {
-  const presetCheckboxes = document.querySelectorAll(`.selector-preset-checkbox[data-index="${index}"]`);
-  const customInputs = document.querySelectorAll(`.custom-selector-input[data-index="${index}"]`);
-
-  const checkedPresets = Array.from(presetCheckboxes)
-    .filter(cb => cb.checked)
-    .map(cb => cb.value);
-
-  const customSelectors = Array.from(customInputs)
-    .map(input => input.value.trim())
-    .filter(val => val.length > 0);
-
-  const allSelectors = [...checkedPresets, ...customSelectors];
-  userRules.buttonClickRules[index].selector = allSelectors.join(', ') || 'button';
-}
-
-// Create user button click rule card (fully editable)
-function createUserClickRuleCard(rule, index) {
-  const card = document.createElement('div');
-  card.className = 'rule-card';
-  card.innerHTML = `
-    <div class="rule-header">
-      <div class="rule-title">
-        <label style="font-size: 11px; color: #7f8c8d; margin-bottom: 4px; display: block;">Rule Name</label>
-        <input type="text" value="${escapeHTML(rule.name)}" data-index="${index}" data-field="name" class="user-click-rule-input" placeholder="Enter a descriptive name" style="margin-bottom: 4px;">
-        <span class="help-text">Give this rule a name for easy identification</span>
-      </div>
-      <div class="rule-actions">
-        <label class="toggle-switch">
-          <input type="checkbox" ${rule.enabled ? 'checked' : ''} data-index="${index}" data-field="enabled" class="user-click-rule-input">
-          <span class="toggle-slider"></span>
-        </label>
-        <button class="btn btn-danger btn-small delete-user-click-rule" data-index="${index}">Delete</button>
-      </div>
-    </div>
-    <div class="rule-body">
-      <div class="form-group form-group-full">
-        <label>URL Pattern</label>
-        <input type="text" value="${escapeHTML(rule.urlPattern)}" data-index="${index}" data-field="urlPattern" class="user-click-rule-input">
-        <span class="help-text">Use * for wildcards (e.g., *://example.com/*)</span>
-      </div>
-      <div class="form-group">
-        <label>Match Type</label>
-        <select data-index="${index}" data-field="matchType" class="user-click-rule-input">
-          <option value="glob" ${rule.matchType === 'glob' ? 'selected' : ''}>Glob Pattern</option>
-          <option value="regex" ${rule.matchType === 'regex' ? 'selected' : ''}>Regular Expression</option>
-          <option value="exact" ${rule.matchType === 'exact' ? 'selected' : ''}>Exact Match</option>
-          <option value="contains" ${rule.matchType === 'contains' ? 'selected' : ''}>Contains</option>
-        </select>
-      </div>
-      <div class="form-group form-group-full">
-        <label>CSS Selector</label>
-        <div class="selector-checkboxes">
-          ${generateSelectorCheckboxes(rule.selector, index)}
-        </div>
-        <div class="custom-selectors" data-index="${index}">
-          ${renderCustomSelectors(rule.selector, index)}
-        </div>
-        <button class="btn btn-secondary btn-small add-custom-selector" data-index="${index}">+ Add Custom Selector</button>
-        <span class="help-text">Select common button types or add custom CSS selectors</span>
-      </div>
-      <div class="form-group">
-        <label>Button Text (optional)</label>
-        <input type="text" value="${escapeHTML(rule.buttonText || '')}" data-index="${index}" data-field="buttonText" class="user-click-rule-input">
-        <span class="help-text">Additional filter by button text</span>
-      </div>
-      <div class="form-group">
-        <label>Delay (milliseconds)</label>
-        <input type="number" value="${rule.delay}" min="0" step="100" data-index="${index}" data-field="delay" class="user-click-rule-input">
-        <span class="help-text">Wait time before clicking (default: 1000)</span>
-      </div>
-    </div>
+function renderDefaultClickRow(rule) {
+  const enabled = defaultRulesEnabled[rule.id] !== false;
+  const row = document.createElement('div');
+  row.className = `rule-row grid-click is-default${enabled ? '' : ' is-disabled'}`;
+  row.dataset.defaultId = rule.id;
+  row.dataset.kind = 'default-click';
+  row.innerHTML = `
+    <div class="cell-name"><span class="pill pill-builtin"><svg><use href="#i-star"/></svg>Built-in</span><span class="nm">${escapeHTML(rule.name)}</span></div>
+    <input class="inline" readonly value="${escapeHTML(rule.urlPattern)}" />
+    <input class="inline" readonly value="${escapeHTML(rule.selector || '')}" />
+    <input class="inline${rule.buttonText ? '' : ' placeholder-empty'}" readonly value="${escapeHTML(rule.buttonText || '')}" placeholder="(any)" />
+    <div class="cell-delay"><input class="inline" readonly value="${escapeHTML(rule.delay)}" /><span class="unit">ms</span></div>
+    <span class="toggle${enabled ? ' on' : ''}" role="switch" aria-checked="${enabled}" tabindex="0" data-default-toggle="${escapeHTML(rule.id)}"></span>
+    <div class="row-actions"><button class="icon-btn" title="Locked — built-in rule"><svg width="13" height="13"><use href="#i-lock"/></svg></button></div>
   `;
-  return card;
+  return row;
 }
 
-// Attach event listeners
-function attachEventListeners() {
-  // Add close rule
-  document.getElementById('add-close-rule').addEventListener('click', () => {
-    const defaultPattern = '*://example.com/*';
-    userRules.tabCloseRules.push({
-      id: generateId(),
-      name: generateDefaultRuleName(defaultPattern),
-      urlPattern: defaultPattern,
-      matchType: 'glob',
-      enabled: false,
-      delay: 3000
-    });
-    markDirty();
-    renderCloseRules();
+function renderUserCloseRow(rule, index) {
+  const enabled = rule.enabled !== false;
+  const row = document.createElement('div');
+  row.className = `rule-row grid-close${enabled ? '' : ' is-disabled'}`;
+  row.dataset.userIndex = String(index);
+  row.dataset.kind = 'user-close';
+  row.innerHTML = `
+    <div class="cell-name"><input class="inline name-input" value="${escapeHTML(rule.name)}" data-field="name" /></div>
+    <input class="inline" value="${escapeHTML(rule.urlPattern)}" spellcheck="false" data-field="urlPattern" />
+    <select class="inline" data-field="matchType" aria-label="Match type">
+      <option value="glob"${rule.matchType === 'glob' ? ' selected' : ''}>glob</option>
+      <option value="regex"${rule.matchType === 'regex' ? ' selected' : ''}>regex</option>
+      <option value="exact"${rule.matchType === 'exact' ? ' selected' : ''}>exact</option>
+      <option value="contains"${rule.matchType === 'contains' ? ' selected' : ''}>contains</option>
+    </select>
+    <div class="cell-delay"><input class="inline" type="number" min="0" step="100" value="${escapeHTML(rule.delay)}" data-field="delay" /><span class="unit">ms</span></div>
+    <span class="toggle${enabled ? ' on' : ''}" role="switch" aria-checked="${enabled}" tabindex="0" data-user-toggle="1"></span>
+    <div class="row-actions"><button class="icon-btn danger" title="Delete rule" data-delete-user="1"><svg width="13" height="13"><use href="#i-trash"/></svg></button></div>
+  `;
+  return row;
+}
+
+function renderUserClickRow(rule, index) {
+  const enabled = rule.enabled !== false;
+  const row = document.createElement('div');
+  row.className = `rule-row grid-click${enabled ? '' : ' is-disabled'}`;
+  row.dataset.userIndex = String(index);
+  row.dataset.kind = 'user-click';
+  row.innerHTML = `
+    <div class="cell-name"><input class="inline name-input" value="${escapeHTML(rule.name)}" data-field="name" /></div>
+    <input class="inline" value="${escapeHTML(rule.urlPattern)}" spellcheck="false" data-field="urlPattern" />
+    <input class="inline" value="${escapeHTML(rule.selector || '')}" spellcheck="false" data-field="selector" />
+    <input class="inline${rule.buttonText ? '' : ' placeholder-empty'}" value="${escapeHTML(rule.buttonText || '')}" placeholder="(any)" spellcheck="false" data-field="buttonText" />
+    <div class="cell-delay"><input class="inline" type="number" min="0" step="100" value="${escapeHTML(rule.delay)}" data-field="delay" /><span class="unit">ms</span></div>
+    <span class="toggle${enabled ? ' on' : ''}" role="switch" aria-checked="${enabled}" tabindex="0" data-user-toggle="1"></span>
+    <div class="row-actions"><button class="icon-btn danger" title="Delete rule" data-delete-user="1"><svg width="13" height="13"><use href="#i-trash"/></svg></button></div>
+  `;
+  return row;
+}
+
+function addRow(kind, label) {
+  const el = document.createElement('div');
+  el.className = 'add-row';
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+  el.dataset.addKind = kind;
+  el.innerHTML = `<span class="plus"><svg width="10" height="10"><use href="#i-plus"/></svg></span>${escapeHTML(label)}<span class="kbd-hint"><kbd>N</kbd></span>`;
+  return el;
+}
+
+// ---------- Event wiring ----------
+function attachGlobalListeners() {
+  // Nav / page switching
+  document.querySelectorAll('.nav-item[data-target]').forEach(n => {
+    n.addEventListener('click', () => activatePage(n.dataset.target));
   });
 
-  // Add click rule
-  document.getElementById('add-click-rule').addEventListener('click', () => {
-    const defaultPattern = '*://example.com/*';
-    userRules.buttonClickRules.push({
-      id: generateId(),
-      name: generateDefaultRuleName(defaultPattern),
-      urlPattern: defaultPattern,
-      matchType: 'glob',
-      selector: 'button',
-      buttonText: '',
-      enabled: false,
-      delay: 1000
+  // Theme toggle
+  document.querySelectorAll('.tt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const theme = btn.dataset.themeSet;
+      document.documentElement.setAttribute('data-theme', theme);
+      currentTheme = theme;
+      try { localStorage.setItem('cc-theme', theme); } catch (e) {}
+      saveTheme(theme);
     });
-    markDirty();
-    renderClickRules();
   });
 
-  // Save config
+  // Action bar
   document.getElementById('save-config').addEventListener('click', saveConfig);
-
-  // Reset config
   document.getElementById('reset-config').addEventListener('click', resetConfig);
-
-  // Export config
   document.getElementById('export-config').addEventListener('click', exportConfig);
-
-  // Import config
-  document.getElementById('import-config').addEventListener('click', () => {
-    document.getElementById('import-file').click();
-  });
-
+  document.getElementById('import-config').addEventListener('click', () => document.getElementById('import-file').click());
   document.getElementById('import-file').addEventListener('change', importConfig);
 
-  // Initialize tab navigation
-  initTabNavigation();
+  // Add-rule buttons (top-right of each tab)
+  document.getElementById('add-close-rule').addEventListener('click', () => addCloseRule());
+  document.getElementById('add-click-rule').addEventListener('click', () => addClickRule());
 
-  // Attach rule-specific listeners using event delegation
-  attachRuleListeners();
+  // Shortcut overlay
+  document.getElementById('help-btn').addEventListener('click', () => openOverlay());
+  document.getElementById('overlay-close').addEventListener('click', () => closeOverlay());
+  document.getElementById('overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'overlay') closeOverlay();
+  });
+
+  // Rule table event delegation (shared across both tabs)
+  const content = document.getElementById('content');
+  content.addEventListener('click', handleTableClick);
+  content.addEventListener('change', handleTableChange);
+  content.addEventListener('input', handleTableInput);
+  content.addEventListener('keydown', handleTableKeydown);
+
+  // Search filters
+  document.querySelectorAll('input[data-search-for]').forEach(inp => {
+    inp.addEventListener('input', (e) => filterRules(e.target.dataset.searchFor, e.target.value));
+  });
+
+  // Global chord / shortcut keys
+  document.addEventListener('keydown', handleGlobalKeydown);
+
+  // Deep-link support
+  window.addEventListener('hashchange', () => activatePage(pageFromHash()));
 }
 
-/**
- * Tab Navigation System
- *
- * Manages the tab interface for switching between Close Rules and Click Rules.
- * Features:
- * - Click-based tab switching
- * - Keyboard navigation (Arrow keys, Home, End)
- * - State persistence via localStorage
- * - Deep linking via URL hash (#close-rules, #click-rules)
- * - Smooth fade-in animations
- */
-
-// Initialize tab navigation
-function initTabNavigation() {
-  // Clean up old collapse state keys (one-time migration)
-  localStorage.removeItem('section-close-rules-collapsed');
-  localStorage.removeItem('section-click-rules-collapsed');
-
-  const tabButtons = document.querySelectorAll('.tab-button');
-
-  tabButtons.forEach(button => {
-    button.addEventListener('click', (e) => {
-      const tabId = e.currentTarget.dataset.tab;
-      switchTab(tabId);
-    });
+function activatePage(pageId) {
+  if (pageId !== 'page-close' && pageId !== 'page-click') pageId = 'page-close';
+  currentPage = pageId;
+  document.querySelectorAll('.nav-item[data-target]').forEach(n => {
+    const on = n.dataset.target === pageId;
+    n.classList.toggle('active', on);
+    n.setAttribute('aria-selected', on ? 'true' : 'false');
   });
-
-  // Keyboard navigation
-  const tabsNav = document.querySelector('.tabs-nav');
-  tabsNav.addEventListener('keydown', handleTabKeyboard);
-
-  // Restore last active tab or load from URL hash
-  restoreActiveTab();
-
-  // Handle URL hash changes (deep linking)
-  window.addEventListener('hashchange', handleHashChange);
-}
-
-// Switch to a specific tab
-function switchTab(tabId) {
-  // Update state
-  currentTab = tabId;
-
-  // Update tab buttons
-  document.querySelectorAll('.tab-button').forEach(btn => {
-    const isActive = btn.dataset.tab === tabId;
-    btn.classList.toggle('active', isActive);
-    btn.setAttribute('aria-selected', isActive);
-    btn.setAttribute('tabindex', isActive ? '0' : '-1');
-  });
-
-  // Update panels
-  document.querySelectorAll('.tab-panel').forEach(panel => {
-    const isActive = panel.dataset.panel === tabId;
-    panel.classList.toggle('active', isActive);
-
-    if (isActive) {
-      panel.removeAttribute('hidden');
-    } else {
-      panel.setAttribute('hidden', '');
-    }
-  });
-
-  // Save to localStorage
-  localStorage.setItem('activeTab', tabId);
-
-  // Update URL hash (for deep linking)
-  if (window.location.hash !== `#${tabId}`) {
-    history.replaceState(null, '', `#${tabId}`);
+  document.querySelectorAll('.page').forEach(p => { p.hidden = p.id !== pageId; });
+  const hashSlug = pageId === 'page-close' ? 'close-rules' : 'click-rules';
+  if (window.location.hash !== `#${hashSlug}`) {
+    history.replaceState(null, '', `#${hashSlug}`);
   }
 }
 
-// Handle keyboard navigation for tabs
-function handleTabKeyboard(e) {
-  const tabs = Array.from(document.querySelectorAll('.tab-button'));
-  const currentIndex = tabs.findIndex(tab => tab.classList.contains('active'));
+function pageFromHash() {
+  const h = window.location.hash.slice(1);
+  if (h === 'click-rules') return 'page-click';
+  return 'page-close';
+}
 
-  let newIndex = currentIndex;
+function restoreActivePage() {
+  activatePage(pageFromHash());
+}
 
-  // Arrow key navigation
-  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+// ---------- Rule table handlers ----------
+function handleTableClick(e) {
+  // Toggle on a rule row
+  const defToggle = e.target.closest('[data-default-toggle]');
+  if (defToggle) { toggleDefaultRule(defToggle); return; }
+  const userToggle = e.target.closest('[data-user-toggle]');
+  if (userToggle) { toggleUserRule(userToggle); return; }
+
+  // Delete
+  const del = e.target.closest('[data-delete-user]');
+  if (del) { deleteUserRule(del.closest('.rule-row')); return; }
+
+  // Add-row clicks
+  const add = e.target.closest('.add-row[data-add-kind]');
+  if (add) { addKindRule(add.dataset.addKind); return; }
+}
+
+function handleTableChange(e) {
+  const row = e.target.closest('.rule-row');
+  if (!row) return;
+  const kind = row.dataset.kind;
+  if (kind === 'user-close' || kind === 'user-click') {
+    const field = e.target.dataset.field;
+    if (!field) return;
+    const index = Number(row.dataset.userIndex);
+    const arr = kind === 'user-close' ? userRules.tabCloseRules : userRules.buttonClickRules;
+    let value = e.target.value;
+    if (field === 'delay') {
+      value = clampDelay(value, 0, 60000, kind === 'user-close' ? 3000 : 1000);
+    }
+    arr[index][field] = value;
+    markDirty();
+  }
+}
+
+function handleTableInput(e) {
+  // Live input updates for text fields (keeps state fresh without waiting for change event)
+  handleTableChange(e);
+}
+
+function handleTableKeydown(e) {
+  // Space / Enter on toggle
+  if ((e.key === ' ' || e.key === 'Enter') && e.target.classList && e.target.classList.contains('toggle')) {
     e.preventDefault();
-    newIndex = (currentIndex + 1) % tabs.length;
-  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-    e.preventDefault();
-    newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-  } else if (e.key === 'Home') {
-    e.preventDefault();
-    newIndex = 0;
-  } else if (e.key === 'End') {
-    e.preventDefault();
-    newIndex = tabs.length - 1;
-  } else {
-    return; // Not a navigation key
-  }
-
-  // Switch to new tab and focus
-  const newTab = tabs[newIndex];
-  switchTab(newTab.dataset.tab);
-  newTab.focus();
-}
-
-// Restore the active tab from localStorage or URL hash
-function restoreActiveTab() {
-  // Priority: URL hash > localStorage > default
-  let tabToActivate = 'close-rules'; // default
-
-  // Check URL hash first
-  const hash = window.location.hash.slice(1);
-  if (hash && (hash === 'close-rules' || hash === 'click-rules')) {
-    tabToActivate = hash;
-  } else {
-    // Check localStorage
-    const savedTab = localStorage.getItem('activeTab');
-    if (savedTab && (savedTab === 'close-rules' || savedTab === 'click-rules')) {
-      tabToActivate = savedTab;
-    }
-  }
-
-  switchTab(tabToActivate);
-}
-
-// Handle URL hash changes for deep linking
-function handleHashChange() {
-  const hash = window.location.hash.slice(1);
-  if (hash && (hash === 'close-rules' || hash === 'click-rules')) {
-    switchTab(hash);
+    e.target.click();
   }
 }
 
-// Attach listeners for rule inputs using event delegation
-function attachRuleListeners() {
-  const closeRulesList = document.getElementById('close-rules-list');
-  const clickRulesList = document.getElementById('click-rules-list');
-
-  // Event delegation for close rules
-  closeRulesList.addEventListener('change', (e) => {
-    // Default rule toggles
-    if (e.target.matches('.default-rule-toggle')) {
-      const ruleId = e.target.dataset.ruleId;
-      defaultRulesEnabled[ruleId] = e.target.checked;
-      markDirty();
-    }
-
-    // User close rule inputs
-    if (e.target.matches('.user-close-rule-input')) {
-      const index = parseInt(e.target.dataset.index);
-      const field = e.target.dataset.field;
-      const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-      userRules.tabCloseRules[index][field] = field === 'delay' ? clampDelay(value, 0, 60000, 3000) : value;
-      markDirty();
-    }
-  });
-
-  closeRulesList.addEventListener('click', (e) => {
-    // Delete user close rule buttons
-    if (e.target.matches('.delete-user-close-rule')) {
-      const index = parseInt(e.target.dataset.index);
-      if (confirm('Are you sure you want to delete this rule?')) {
-        userRules.tabCloseRules.splice(index, 1);
-        markDirty();
-        renderCloseRules();
-      }
-    }
-  });
-
-  // Event delegation for click rules
-  clickRulesList.addEventListener('change', (e) => {
-    // Default rule toggles
-    if (e.target.matches('.default-rule-toggle')) {
-      const ruleId = e.target.dataset.ruleId;
-      defaultRulesEnabled[ruleId] = e.target.checked;
-      markDirty();
-    }
-
-    // User click rule inputs
-    if (e.target.matches('.user-click-rule-input')) {
-      const index = parseInt(e.target.dataset.index);
-      const field = e.target.dataset.field;
-      const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-      userRules.buttonClickRules[index][field] = field === 'delay' ? clampDelay(value, 0, 60000, 1000) : value;
-      markDirty();
-    }
-
-    // Selector preset checkboxes
-    if (e.target.matches('.selector-preset-checkbox')) {
-      const index = parseInt(e.target.dataset.index);
-      updateSelectorFromUI(index);
-      markDirty();
-    }
-  });
-
-  clickRulesList.addEventListener('input', (e) => {
-    // Custom selector inputs
-    if (e.target.matches('.custom-selector-input')) {
-      const index = parseInt(e.target.dataset.index);
-      updateSelectorFromUI(index);
-      markDirty();
-    }
-  });
-
-  clickRulesList.addEventListener('click', (e) => {
-    // Add custom selector buttons
-    if (e.target.matches('.add-custom-selector')) {
-      const index = parseInt(e.target.dataset.index);
-      const container = document.querySelector(`.custom-selectors[data-index="${index}"]`);
-
-      const newRow = document.createElement('div');
-      newRow.className = 'custom-selector-row';
-      newRow.innerHTML = `
-        <input type="text" value="" data-index="${index}" data-custom-index="${container.children.length}" class="custom-selector-input" placeholder="e.g., button.submit">
-        <button class="btn btn-danger btn-xs remove-custom-selector" data-index="${index}" data-custom-index="${container.children.length}">×</button>
-      `;
-
-      container.appendChild(newRow);
-      markDirty();
-    }
-
-    // Remove custom selector buttons
-    if (e.target.matches('.remove-custom-selector')) {
-      const index = parseInt(e.target.dataset.index);
-      e.target.closest('.custom-selector-row').remove();
-      updateSelectorFromUI(index);
-      markDirty();
-    }
-
-    // Delete user click rule buttons
-    if (e.target.matches('.delete-user-click-rule')) {
-      const index = parseInt(e.target.dataset.index);
-      if (confirm('Are you sure you want to delete this rule?')) {
-        userRules.buttonClickRules.splice(index, 1);
-        markDirty();
-        renderClickRules();
-      }
-    }
-  });
+function toggleDefaultRule(toggleEl) {
+  const id = toggleEl.dataset.defaultToggle;
+  const nowEnabled = !toggleEl.classList.contains('on');
+  toggleEl.classList.toggle('on', nowEnabled);
+  toggleEl.setAttribute('aria-checked', nowEnabled ? 'true' : 'false');
+  const row = toggleEl.closest('.rule-row');
+  if (row) row.classList.toggle('is-disabled', !nowEnabled);
+  defaultRulesEnabled[id] = nowEnabled;
+  markDirty();
 }
 
-// Save configuration
-async function saveConfig() {
-  try {
-    await chrome.storage.sync.set({
-      userRules,
-      defaultRulesEnabled
-    });
-    markClean();
-    showStatus('Configuration saved successfully!', 'success');
-  } catch (error) {
-    showStatus('Failed to save configuration: ' + error.message, 'error');
+function toggleUserRule(toggleEl) {
+  const row = toggleEl.closest('.rule-row');
+  if (!row) return;
+  const kind = row.dataset.kind;
+  const index = Number(row.dataset.userIndex);
+  const arr = kind === 'user-close' ? userRules.tabCloseRules : userRules.buttonClickRules;
+  const nowEnabled = !toggleEl.classList.contains('on');
+  toggleEl.classList.toggle('on', nowEnabled);
+  toggleEl.setAttribute('aria-checked', nowEnabled ? 'true' : 'false');
+  row.classList.toggle('is-disabled', !nowEnabled);
+  arr[index].enabled = nowEnabled;
+  markDirty();
+}
+
+function deleteUserRule(row) {
+  if (!row) return;
+  if (!confirm('Delete this rule?')) return;
+  const kind = row.dataset.kind;
+  const index = Number(row.dataset.userIndex);
+  if (kind === 'user-close') userRules.tabCloseRules.splice(index, 1);
+  else if (kind === 'user-click') userRules.buttonClickRules.splice(index, 1);
+  markDirty();
+  renderAll();
+}
+
+function addKindRule(kind) {
+  if (kind === 'close') addCloseRule();
+  else if (kind === 'click') addClickRule();
+}
+
+function addCloseRule() {
+  const pattern = '*://example.com/*';
+  userRules.tabCloseRules.push({
+    id: generateId(),
+    name: generateDefaultRuleName(pattern),
+    urlPattern: pattern,
+    matchType: 'glob',
+    enabled: true,
+    delay: 3000
+  });
+  markDirty();
+  renderCloseRules();
+  updateNavCounts();
+  activatePage('page-close');
+  focusLastUserRuleName('close-user-list');
+}
+
+function addClickRule() {
+  const pattern = '*://example.com/*';
+  userRules.buttonClickRules.push({
+    id: generateId(),
+    name: generateDefaultRuleName(pattern),
+    urlPattern: pattern,
+    matchType: 'glob',
+    selector: 'button',
+    buttonText: '',
+    enabled: true,
+    delay: 500
+  });
+  markDirty();
+  renderClickRules();
+  updateNavCounts();
+  activatePage('page-click');
+  focusLastUserRuleName('click-user-list');
+}
+
+function focusLastUserRuleName(listId) {
+  const list = document.getElementById(listId);
+  const rows = list.querySelectorAll('.rule-row:not(.header)');
+  const last = rows[rows.length - 1];
+  if (last) {
+    last.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const nameInput = last.querySelector('.name-input');
+    if (nameInput) { nameInput.focus(); nameInput.select(); }
   }
 }
 
-// Reset to default configuration
+// ---------- Filter ----------
+function filterRules(pageId, query) {
+  const page = document.getElementById(pageId);
+  if (!page) return;
+  const q = query.trim().toLowerCase();
+  page.querySelectorAll('.rule-row:not(.header)').forEach(row => {
+    if (!q) { row.style.display = ''; return; }
+    const text = row.textContent.toLowerCase();
+    const inputs = Array.from(row.querySelectorAll('input, select')).map(i => (i.value || '').toLowerCase()).join(' ');
+    row.style.display = (text + ' ' + inputs).includes(q) ? '' : 'none';
+  });
+}
+
+// ---------- Reset / Import / Export ----------
 async function resetConfig() {
-  if (!confirm('Are you sure you want to reset? This will delete all custom rules and re-enable all default rules.')) {
-    return;
-  }
-
-  // Clear user rules
+  if (!confirm('Reset Click Custodian? This deletes all custom rules and re-enables every built-in.')) return;
   userRules = { tabCloseRules: [], buttonClickRules: [] };
-
-  // Re-enable all defaults
   defaultRulesEnabled = {};
-  [...defaultRules.tabCloseRules, ...defaultRules.buttonClickRules].forEach(rule => {
-    defaultRulesEnabled[rule.id] = true;
-  });
-
-  await saveConfig();
-  renderRules();
+  [...defaultRules.tabCloseRules, ...defaultRules.buttonClickRules].forEach(r => { defaultRulesEnabled[r.id] = true; });
+  await chrome.storage.sync.set({ userRules, defaultRulesEnabled });
   markClean();
-  showStatus('Reset complete - all defaults re-enabled, custom rules deleted', 'success');
+  renderAll();
+  showStatus('Reset — all defaults re-enabled, custom rules cleared', 'success');
 }
 
-// Export configuration
 function exportConfig() {
-  // Warn if there are unsaved changes
   if (hasUnsavedChanges) {
-    if (!confirm('You have unsaved changes. The export will NOT include these changes. Continue?')) {
-      return;
-    }
+    if (!confirm('You have unsaved changes. The export will NOT include them. Continue?')) return;
   }
-
-  const exportData = {
-    userRules,
-    defaultRulesEnabled
-  };
-  const dataStr = JSON.stringify(exportData, null, 2);
-  const dataBlob = new Blob([dataStr], { type: 'application/json' });
-  const url = URL.createObjectURL(dataBlob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'click-custodian-config.json';
-  link.click();
+  const data = { userRules, defaultRulesEnabled };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'click-custodian-config.json'; a.click();
   URL.revokeObjectURL(url);
   showStatus('Configuration exported', 'success');
 }
 
-// Import configuration
 async function importConfig(e) {
   const file = e.target.files[0];
   if (!file) return;
-
   try {
     const text = await file.text();
-    const importedData = JSON.parse(text);
-
-    // Validate config structure
-    if (!importedData.userRules || !importedData.userRules.tabCloseRules || !importedData.userRules.buttonClickRules) {
+    const imported = JSON.parse(text);
+    if (!imported.userRules || !imported.userRules.tabCloseRules || !imported.userRules.buttonClickRules) {
       throw new Error('Invalid configuration format');
     }
-
-    userRules = importedData.userRules;
-    defaultRulesEnabled = importedData.defaultRulesEnabled || {};
-    await saveConfig();
-    renderRules();
+    userRules = imported.userRules;
+    defaultRulesEnabled = imported.defaultRulesEnabled || {};
+    await chrome.storage.sync.set({ userRules, defaultRulesEnabled });
     markClean();
-    showStatus('Configuration imported successfully', 'success');
+    renderAll();
+    showStatus('Configuration imported', 'success');
   } catch (error) {
-    showStatus('Failed to import configuration: ' + error.message, 'error');
+    showStatus('Failed to import: ' + error.message, 'error');
   }
-
-  // Reset file input
   e.target.value = '';
 }
 
-// Show status message
-function showStatus(message, type) {
-  const statusEl = document.getElementById('status-message');
-  statusEl.textContent = message;
-  statusEl.className = `status-message ${type}`;
+// ---------- Overlay ----------
+function openOverlay() { document.getElementById('overlay').classList.add('open'); }
+function closeOverlay() { document.getElementById('overlay').classList.remove('open'); }
 
-  setTimeout(() => {
-    statusEl.className = 'status-message';
-  }, 3000);
+// ---------- Global keys (chord + shortcuts) ----------
+let gPending = false;
+let gTimer = null;
+
+function handleGlobalKeydown(e) {
+  const tag = (e.target && e.target.tagName) || '';
+  const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+  // Cmd/Ctrl+S saves regardless of focus
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    if (hasUnsavedChanges) saveConfig();
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    if (document.getElementById('overlay').classList.contains('open')) closeOverlay();
+    else if (typing && e.target.blur) e.target.blur();
+    return;
+  }
+
+  if (typing) return;
+
+  if (e.key === '?') { e.preventDefault(); openOverlay(); return; }
+  if (e.key === '/') {
+    e.preventDefault();
+    const currentSearch = document.querySelector(`input[data-search-for="${currentPage}"]`);
+    if (currentSearch) currentSearch.focus();
+    return;
+  }
+  if (e.key.toLowerCase() === 'n') {
+    e.preventDefault();
+    if (currentPage === 'page-close') addCloseRule();
+    else addClickRule();
+    return;
+  }
+  if (e.key.toLowerCase() === 'g' && !gPending) {
+    gPending = true;
+    clearTimeout(gTimer);
+    gTimer = setTimeout(() => { gPending = false; }, 900);
+    return;
+  }
+  if (gPending) {
+    const k = e.key.toLowerCase();
+    if (k === 'c') activatePage('page-close');
+    else if (k === 'b') activatePage('page-click');
+    gPending = false;
+    clearTimeout(gTimer);
+  }
 }

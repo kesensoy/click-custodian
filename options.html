@@ -1,94 +1,207 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Click Custodian Settings</title>
-  <link rel="stylesheet" href="options.css">
+<meta charset="utf-8" />
+<title>Click Custodian — Settings</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script>
+  // Apply theme before CSS loads to avoid flash of wrong colors.
+  // Primary source is chrome.storage.sync but that's async; fall back to a
+  // same-session localStorage mirror (populated on first load) so subsequent
+  // opens don't flash.
+  (function () {
+    try {
+      var t = localStorage.getItem('cc-theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+<link rel="stylesheet" href="options.css" />
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div class="header-content">
+
+<!-- Icon sprite (Lucide-style) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-cursor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l6 16 2-7 7-2z"/></symbol>
+    <symbol id="i-cursor-sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9l5 12 2-6 6-2z"/><path d="M7.2 2.2l.9 2.2M2.2 7.2l2.2.9M5 5l1.5 1.5M13 3l-.8 2.3"/></symbol>
+    <symbol id="i-tab-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M9 5v14"/><path d="M14 10l4 4M18 10l-4 4"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 9 5-5 5 5"/><path d="M12 4v12"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5l2.6 5.2 5.8.9-4.2 4 1 5.7L12 16.6l-5.2 2.7 1-5.7-4.2-4 5.8-.9z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" role="application">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" aria-label="Settings navigation">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l6 16 2-7 7-2z"/></svg></div>
+      <div>
+        <div class="brand-title">Click Custodian</div>
+        <div class="brand-sub">settings</div>
+      </div>
+    </div>
+
+    <div class="nav-section">Rules</div>
+    <div class="nav" role="tablist">
+      <button class="nav-item active" data-target="page-close" role="tab" aria-selected="true" id="nav-close">
+        <svg class="nav-icon"><use href="#i-tab-x"/></svg>
+        <span>Tab auto-close</span><span class="nav-count" id="nav-close-count">0</span>
+      </button>
+      <button class="nav-item" data-target="page-click" role="tab" aria-selected="false" id="nav-click">
+        <svg class="nav-icon"><use href="#i-cursor-sparkle"/></svg>
+        <span>Button auto-click</span><span class="nav-count" id="nav-click-count">0</span>
+      </button>
+    </div>
+
+    <div class="sidebar-foot">
+      <span class="dot"></span>
+      <span class="sf-text">synced</span>
+      <div class="theme-toggle" role="radiogroup" aria-label="Color theme">
+        <button class="tt-btn" data-theme-set="light" role="radio" aria-label="Light theme" title="Light theme">
+          <svg><use href="#i-sun"/></svg>
+        </button>
+        <button class="tt-btn" data-theme-set="dark" role="radio" aria-label="Dark theme" title="Dark theme">
+          <svg><use href="#i-moon"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="content" id="content">
+
+    <!-- Tab Auto-Close -->
+    <section class="page" id="page-close">
+      <div class="breadcrumb"><span>settings</span><span class="sep">/</span><span>rules</span><span class="sep">/</span><span class="crumb-current">tab-auto-close</span></div>
+
+      <div class="page-head">
         <div>
-          <h1>Click Custodian Settings</h1>
-          <p class="subtitle">Manage auto-close rules and button click automation</p>
+          <h1 class="page-title">Tab Auto-Close <em>Rules</em></h1>
+          <p class="page-desc">When a tab's URL matches one of these patterns, Click Custodian shows a countdown overlay and quietly closes the tab. Built-in rules ship with the extension and auto-update; your own rules stay put.</p>
         </div>
       </div>
-    </header>
 
-    <div id="unsaved-banner" class="unsaved-banner" style="display: none;">
-      ⚠️ You have unsaved changes
-    </div>
-
-    <!-- Tab Navigation -->
-    <nav class="tabs-nav" role="tablist">
-      <button
-        class="tab-button active"
-        role="tab"
-        aria-selected="true"
-        aria-controls="close-rules-panel"
-        data-tab="close-rules"
-        id="tab-close-rules">
-        <span class="tab-icon">🚪</span>
-        <span class="tab-label">Tab Auto-Close Rules</span>
-      </button>
-      <button
-        class="tab-button"
-        role="tab"
-        aria-selected="false"
-        aria-controls="click-rules-panel"
-        data-tab="click-rules"
-        id="tab-click-rules">
-        <span class="tab-icon">👆</span>
-        <span class="tab-label">Button Auto-Click Rules</span>
-      </button>
-    </nav>
-
-    <!-- Tab Panels Container -->
-    <div class="tab-panels">
-
-      <!-- Close Rules Panel -->
-      <div
-        class="tab-panel active"
-        id="close-rules-panel"
-        role="tabpanel"
-        aria-labelledby="tab-close-rules"
-        data-panel="close-rules">
-        <div class="panel-header">
-          <h2>Tab Auto-Close Rules</h2>
-          <button id="add-close-rule" class="btn btn-primary">+ Add Rule</button>
-        </div>
-        <div id="close-rules-list" class="rules-list"></div>
+      <div class="toolbar">
+        <label class="search" aria-label="Search rules">
+          <svg><use href="#i-search"/></svg>
+          <input placeholder="Filter rules by name, pattern, or selector…" data-search-for="page-close" />
+          <kbd>/</kbd>
+        </label>
+        <div class="toolbar-spacer"></div>
+        <button class="btn" id="add-close-rule"><svg class="ic"><use href="#i-plus"/></svg>New rule <kbd style="margin-left:2px">N</kbd></button>
       </div>
 
-      <!-- Click Rules Panel -->
-      <div
-        class="tab-panel"
-        id="click-rules-panel"
-        role="tabpanel"
-        aria-labelledby="tab-click-rules"
-        data-panel="click-rules">
-        <div class="panel-header">
-          <h2>Button Auto-Click Rules</h2>
-          <button id="add-click-rule" class="btn btn-primary">+ Add Rule</button>
-        </div>
-        <div id="click-rules-list" class="rules-list"></div>
+      <div class="section-head" id="close-default-head">
+        <h2>Built-in</h2>
+        <span class="count" id="close-default-count">0 rules</span>
+        <span class="note">Maintained by Click Custodian · updated with the extension</span>
       </div>
 
-    </div>
+      <div class="rule-table" id="close-default-list"></div>
 
-    <div class="actions">
-      <button id="save-config" class="btn btn-success">Save Changes</button>
-      <button id="reset-config" class="btn btn-danger">Reset to Defaults</button>
-      <button id="export-config" class="btn btn-secondary">Export Config</button>
-      <button id="import-config" class="btn btn-secondary">Import Config</button>
-      <input type="file" id="import-file" accept=".json" style="display: none;">
-    </div>
+      <div class="section-head">
+        <h2>Your rules</h2>
+        <span class="count" id="close-user-count">0 rules</span>
+        <span class="note">Yours to shape — synced, editable, deletable.</span>
+      </div>
 
-    <div id="status-message" class="status-message"></div>
+      <div class="rule-table" id="close-user-list"></div>
+    </section>
+
+    <!-- Button Auto-Click -->
+    <section class="page" id="page-click" hidden>
+      <div class="breadcrumb"><span>settings</span><span class="sep">/</span><span>rules</span><span class="sep">/</span><span class="crumb-current">button-auto-click</span></div>
+
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Button Auto-Click <em>Rules</em></h1>
+          <p class="page-desc">Match a URL, resolve a CSS <code>selector</code> (optionally filtered by text), wait the configured delay, then click. Polls for up to <code>3000ms</code> with a <code>MutationObserver</code> before giving up.</p>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <label class="search" aria-label="Search rules">
+          <svg><use href="#i-search"/></svg>
+          <input placeholder="Filter rules by name, pattern, or selector…" data-search-for="page-click" />
+          <kbd>/</kbd>
+        </label>
+        <div class="toolbar-spacer"></div>
+        <button class="btn" id="add-click-rule"><svg class="ic"><use href="#i-plus"/></svg>New rule <kbd style="margin-left:2px">N</kbd></button>
+      </div>
+
+      <div class="section-head" id="click-default-head">
+        <h2>Built-in</h2>
+        <span class="count" id="click-default-count">0 rules</span>
+        <span class="note">None ship by default — you're the expert on your own forms.</span>
+      </div>
+
+      <div class="rule-table" id="click-default-list"></div>
+
+      <div class="section-head">
+        <h2>Your rules</h2>
+        <span class="count" id="click-user-count">0 rules</span>
+        <span class="note">Yours to shape — synced, editable, deletable.</span>
+      </div>
+
+      <div class="rule-table" id="click-user-list"></div>
+    </section>
+  </main>
+
+  <!-- Sticky action bar -->
+  <div class="actionbar" role="toolbar" aria-label="Global actions">
+    <div class="actionbar-info is-clean" id="actionbar-info">
+      <span class="pulse"></span><strong id="actionbar-info-text">saved</strong>
+    </div>
+    <span class="divider-vert"></span>
+    <button class="btn ghost" id="import-config"><svg class="ic"><use href="#i-upload"/></svg>Import</button>
+    <button class="btn ghost" id="export-config"><svg class="ic"><use href="#i-download"/></svg>Export</button>
+    <button class="btn ghost" id="reset-config"><svg class="ic"><use href="#i-reset"/></svg>Reset defaults</button>
+    <span class="divider-vert"></span>
+    <button class="btn primary" id="save-config"><svg class="ic"><use href="#i-check"/></svg>Save changes</button>
+    <span class="divider-vert"></span>
+    <button class="help-pill" id="help-btn" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">?</button>
   </div>
+</div>
 
-  <script src="options.js"></script>
+<!-- Hidden file input for Import Config -->
+<input type="file" id="import-file" accept=".json" style="display:none" />
+
+<!-- Toast / status message -->
+<div id="status-message" class="status-message"></div>
+
+<!-- Shortcuts popover -->
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+  <div class="overlay-card">
+    <header>
+      <h3>Keyboard shortcuts</h3>
+      <button class="close" id="overlay-close">esc</button>
+    </header>
+    <div class="shortcut-list">
+      <div class="shortcut-row"><span class="keys"><kbd>G</kbd><span class="plus-sep">then</span><kbd>C</kbd></span><span class="desc">Go to Tab auto-close rules</span></div>
+      <div class="shortcut-row"><span class="keys"><kbd>G</kbd><span class="plus-sep">then</span><kbd>B</kbd></span><span class="desc">Go to Button auto-click rules</span></div>
+      <div class="shortcut-row"><span class="keys"><kbd>N</kbd></span><span class="desc">Add a new rule in the current section</span></div>
+      <div class="shortcut-row"><span class="keys"><kbd>/</kbd></span><span class="desc">Focus the rule filter</span></div>
+      <div class="shortcut-row"><span class="keys"><kbd>⌘</kbd><span class="plus-sep">+</span><kbd>S</kbd></span><span class="desc">Save changes</span></div>
+      <div class="shortcut-row"><span class="keys"><kbd>Esc</kbd></span><span class="desc">Close overlay · cancel inline edit</span></div>
+    </div>
+  </div>
+</div>
+
+<script src="options.js"></script>
 </body>
 </html>
