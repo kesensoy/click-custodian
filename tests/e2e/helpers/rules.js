@@ -11,6 +11,7 @@ function createButtonClickRule(overrides = {}) {
     selector: overrides.selector || '#test-button',
     buttonText: overrides.buttonText || '',
     delay: overrides.delay !== undefined ? overrides.delay : 500,
+    enabled: true,
     ...overrides
   };
 }
@@ -22,31 +23,23 @@ function createTabCloseRule(overrides = {}) {
     urlPattern: overrides.urlPattern || 'http://localhost:*/test-conflict-*',
     matchType: overrides.matchType || 'glob',
     delay: overrides.delay !== undefined ? overrides.delay : 2000,
+    enabled: true,
     ...overrides
   };
 }
 
 function createTestRules({ clickRule = {}, closeRule = {}, includeClick = true, includeClose = true } = {}) {
   const rules = {
-    userRules: {
-      buttonClickRules: [],
-      tabCloseRules: []
-    },
-    defaultRules: {
-      version: "1.0",
-      buttonClickRules: [],
-      tabCloseRules: []
-    },
-    defaultRulesEnabled: {},
-    defaultsVersion: "1.0"
+    tabCloseRules: [],
+    buttonClickRules: []
   };
 
   if (includeClick) {
-    rules.userRules.buttonClickRules.push(createButtonClickRule(clickRule));
+    rules.buttonClickRules.push(createButtonClickRule(clickRule));
   }
 
   if (includeClose) {
-    rules.userRules.tabCloseRules.push(createTabCloseRule(closeRule));
+    rules.tabCloseRules.push(createTabCloseRule(closeRule));
   }
 
   return rules;

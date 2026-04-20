@@ -3,21 +3,22 @@
 // 2. Click "service worker" under Click Custodian
 // 3. Paste this entire script and press Enter
 
-chrome.storage.sync.get(['userRules'], (result) => {
-  const userRules = result.userRules || { tabCloseRules: [], buttonClickRules: [] };
+chrome.storage.sync.get(['buttonClickRules'], (result) => {
+  const buttonClickRules = result.buttonClickRules || [];
 
   // Add button-only test rule
-  userRules.buttonClickRules.push({
+  buttonClickRules.push({
     id: 'test-button-only',
     name: 'Test Button Only',
     urlPattern: 'file://*/manual-tests/test-button-only.html',
     matchType: 'glob',
     selector: 'button',
     buttonText: 'Sign In',
-    delay: 200
+    delay: 200,
+    enabled: true
   });
 
-  chrome.storage.sync.set({ userRules }, () => {
+  chrome.storage.sync.set({ buttonClickRules }, () => {
     console.log('✅ Button-only test rule injected!');
     console.log('Now open: file:///.../manual-tests/test-button-only.html');
   });

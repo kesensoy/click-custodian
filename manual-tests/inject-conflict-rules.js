@@ -1,30 +1,33 @@
 // Inject conflict test rules (both button + close rules for same URL)
 // Run in Options page console (Right-click extension → Options → F12 → Console)
 
-chrome.storage.sync.get(['userRules'], (result) => {
-  const userRules = result.userRules || { tabCloseRules: [], buttonClickRules: [] };
+chrome.storage.sync.get(['buttonClickRules', 'tabCloseRules'], (result) => {
+  const buttonClickRules = result.buttonClickRules || [];
+  const tabCloseRules = result.tabCloseRules || [];
 
   // Add button click rule for conflict test
-  userRules.buttonClickRules.push({
+  buttonClickRules.push({
     id: 'test-conflict-button',
     name: 'Test Conflict Button',
     urlPattern: 'file://*/manual-tests/test-conflict-*.html',
     matchType: 'glob',
     selector: 'button',
     buttonText: 'Sign In',
-    delay: 200
+    delay: 200,
+    enabled: true
   });
 
   // Add tab close rule for conflict test
-  userRules.tabCloseRules.push({
+  tabCloseRules.push({
     id: 'test-conflict-close',
     name: 'Test Conflict Close',
     urlPattern: 'file://*/manual-tests/test-conflict-*.html',
     matchType: 'glob',
-    delay: 3000
+    delay: 3000,
+    enabled: true
   });
 
-  chrome.storage.sync.set({ userRules }, () => {
+  chrome.storage.sync.set({ buttonClickRules, tabCloseRules }, () => {
     console.log('✅ Conflict test rules injected!');
     console.log('Button rule + Close rule both match: file://*/manual-tests/test-conflict-*.html');
     console.log('Ready to test:');
