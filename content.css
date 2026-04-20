@@ -1,85 +1,215 @@
-/* Styles for countdown overlay */
+/* Click Custodian — countdown overlay styles
+ *
+ * This overlay is injected into arbitrary host pages, so:
+ *   - Tokens are scoped on the overlay root (not :root) to avoid host leakage.
+ *   - Selectors use high-specificity IDs to outrank most host page rules.
+ *   - Font stack falls back to system sans — we don't load Google Fonts here.
+ *   - Dark/light follows the host page's prefers-color-scheme (the extension's
+ *     data-theme setting isn't readable from an injected overlay without
+ *     extra messaging — out of scope).
+ */
 
 #click-custodian-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999999;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  animation: click-custodian-fade-in 0.2s ease-in;
+  /* --- Design tokens (light) --- */
+  --cc-navy: #1B2A4A;
+  --cc-navy-700: #243356;
+  --cc-cornflower: #7CB9E8;
+  --cc-cornflower-600: #4F9AD1;
+  --cc-cream: #F9F6F0;
+  --cc-cream-200: #F1ECE0;
+  --cc-white: #FFFFFF;
+  --cc-ink: #0F1A33;
+  --cc-ink-2: #2B3554;
+  --cc-muted: #5E6A85;
+  --cc-faint: #8D96AE;
+  --cc-border: #E6E3DA;
+  --cc-border-strong: #D4CFC2;
+  --cc-rose: #C4563B;
+  --cc-radius: 14px;
+  --cc-radius-sm: 8px;
+  --cc-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --cc-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, sans-serif;
+  --cc-serif: Georgia, 'Times New Roman', serif;
+  --cc-shadow-pop: 0 20px 50px -20px rgba(15, 23, 42, .35), 0 2px 6px rgba(15, 23, 42, .08);
+  --cc-scrim: rgba(15, 19, 32, .48);
+  --cc-btn-primary-bg: var(--cc-navy);
+  --cc-btn-primary-bg-hover: var(--cc-navy-700);
+  --cc-btn-primary-fg: #fff;
+  --cc-btn-primary-shadow: 0 4px 12px rgba(27, 42, 74, .18);
+
+  /* --- Scrim / positioning --- */
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: var(--cc-scrim) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 2147483647 !important;
+  font-family: var(--cc-sans) !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  color: var(--cc-ink) !important;
+  -webkit-font-smoothing: antialiased !important;
+  text-rendering: optimizeLegibility !important;
+  animation: click-custodian-fade-in .18s ease-out !important;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  /* Isolate from host layout quirks */
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  pointer-events: auto !important;
 }
 
 @keyframes click-custodian-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.click-custodian-countdown {
-  background: white;
-  border-radius: 12px;
-  padding: 32px 48px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  text-align: center;
-  max-width: 400px;
-  animation: click-custodian-slide-up 0.3s ease-out;
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes click-custodian-slide-up {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* --- Card --- */
+#click-custodian-overlay .click-custodian-countdown {
+  background: var(--cc-cream) !important;
+  border: 1px solid var(--cc-border-strong) !important;
+  border-radius: var(--cc-radius) !important;
+  padding: 26px 32px 22px !important;
+  box-shadow: var(--cc-shadow-pop) !important;
+  text-align: center !important;
+  max-width: 440px !important;
+  width: min(440px, 92vw) !important;
+  box-sizing: border-box !important;
+  animation: click-custodian-slide-up .22s ease-out !important;
+  font-family: var(--cc-sans) !important;
+  color: var(--cc-ink) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 18px !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+/* Subtle top accent rule, echoing the app's cornflower highlight */
+#click-custodian-overlay .click-custodian-countdown::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 2px !important;
+  background: linear-gradient(90deg, transparent 0%, var(--cc-cornflower) 50%, transparent 100%) !important;
+  opacity: .7 !important;
+}
+
+/* --- Message --- */
+#click-custodian-overlay .click-custodian-message {
+  font-family: var(--cc-sans) !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  letter-spacing: -.003em !important;
+  color: var(--cc-ink) !important;
+  line-height: 1.5 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* --- Countdown number --- */
+#click-custodian-overlay #click-custodian-seconds {
+  font-family: var(--cc-mono) !important;
+  font-weight: 600 !important;
+  font-size: 17px !important;
+  color: var(--cc-cornflower-600) !important;
+  display: inline-block !important;
+  min-width: 18px !important;
+  padding: 1px 8px !important;
+  margin: 0 2px !important;
+  border-radius: 6px !important;
+  background: var(--cc-cream-200) !important;
+  border: 1px solid var(--cc-border) !important;
+  line-height: 1.2 !important;
+  vertical-align: baseline !important;
+}
+
+/* --- Cancel button (matches .btn.primary idiom) --- */
+#click-custodian-overlay .click-custodian-button {
+  all: unset;
+  cursor: pointer !important;
+  font-family: var(--cc-sans) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: .005em !important;
+  padding: 9px 16px !important;
+  border-radius: var(--cc-radius-sm) !important;
+  border: 1px solid var(--cc-btn-primary-bg) !important;
+  background: var(--cc-btn-primary-bg) !important;
+  color: var(--cc-btn-primary-fg) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, transform .12s ease !important;
+  box-sizing: border-box !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  outline: none !important;
+}
+
+#click-custodian-overlay .click-custodian-button:hover {
+  background: var(--cc-btn-primary-bg-hover) !important;
+  border-color: var(--cc-btn-primary-bg-hover) !important;
+  box-shadow: var(--cc-btn-primary-shadow) !important;
+}
+
+#click-custodian-overlay .click-custodian-button:focus-visible {
+  box-shadow: 0 0 0 3px rgba(124, 185, 232, .35), var(--cc-btn-primary-shadow) !important;
+}
+
+#click-custodian-overlay .click-custodian-button:active {
+  transform: translateY(1px) !important;
+  box-shadow: 0 2px 6px rgba(27, 42, 74, .18) !important;
+}
+
+/* --- Dark mode (follows host page preference) --- */
+@media (prefers-color-scheme: dark) {
+  #click-custodian-overlay {
+    --cc-navy: #0B1426;
+    --cc-navy-700: #182349;
+    --cc-cornflower: #9FCBED;
+    --cc-cornflower-600: #6FA6D8;
+    --cc-cream: #0F1527;
+    --cc-cream-200: #1A2341;
+    --cc-white: #1A2340;
+    --cc-ink: #EDEFF5;
+    --cc-ink-2: #B5BDD0;
+    --cc-muted: #8D96AE;
+    --cc-faint: #646C84;
+    --cc-border: #2A3556;
+    --cc-border-strong: #3B476A;
+    --cc-rose: #E38066;
+    --cc-scrim: rgba(0, 0, 0, .62);
+    --cc-shadow-pop: 0 20px 50px -20px rgba(0, 0, 0, .7), 0 2px 6px rgba(0, 0, 0, .5);
+    --cc-btn-primary-bg: var(--cc-cornflower-600);
+    --cc-btn-primary-bg-hover: var(--cc-cornflower);
+    --cc-btn-primary-fg: #0B1426;
+    --cc-btn-primary-shadow: 0 4px 12px rgba(111, 166, 216, .3);
   }
-  to {
-    transform: translateY(0);
-    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #click-custodian-overlay,
+  #click-custodian-overlay .click-custodian-countdown,
+  #click-custodian-overlay .click-custodian-button {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
   }
-}
-
-.click-custodian-message {
-  font-size: 18px;
-  color: #333;
-  margin-bottom: 24px;
-  line-height: 1.5;
-}
-
-#click-custodian-seconds {
-  font-weight: bold;
-  color: #e74c3c;
-  font-size: 24px;
-  display: inline-block;
-  min-width: 20px;
-}
-
-.click-custodian-button {
-  background: #3498db;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  font-size: 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
-}
-
-.click-custodian-button:hover {
-  background: #2980b9;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
-}
-
-.click-custodian-button:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(52, 152, 219, 0.3);
 }
