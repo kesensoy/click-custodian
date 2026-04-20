@@ -45,3 +45,6 @@ docs/superpowers/
 # Design exploration artifacts (mockups, screenshots, logo source variants)
 design-explorations/
 icons/proposed/
+
+# Personal import/export testing file — not shipped
+example-rules.json
