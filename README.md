@@ -38,6 +38,7 @@ Fresh installs come with these examples pre-loaded. Edit or delete them like any
 
 - **Localhost OAuth callback** — `*://localhost:*/*callback*` (glob, tab close)
 - **Azure AD device code approval** — `https://login.microsoftonline.com/appverify` (exact, tab close)
+- **AWS CLI OAuth Callback** — `*://127.0.0.1:*/oauth/callback*` (glob, tab close)
 
 The seed is defined in `seed-examples.json` and only runs on first install. Updates never touch your rules.
 

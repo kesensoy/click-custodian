@@ -93,6 +93,7 @@ Bundled in `seed-examples.json`, loaded once on first install:
 **Tab Close Rules:**
 1. Localhost OAuth callback: `*://localhost:*/*callback*` (glob, 3s delay)
 2. Azure AD device code approval: `https://login.microsoftonline.com/appverify` (exact, 3s delay)
+3. AWS CLI OAuth Callback: `*://127.0.0.1:*/oauth/callback*` (glob, 3s delay)
 
 **Button Click Rules:**
 (none shipped — users add their own)
