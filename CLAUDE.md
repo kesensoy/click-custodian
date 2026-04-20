@@ -67,6 +67,7 @@ Page complete → Poll for button (max 3s) → Found? → Green highlight → Wa
   name: string,       // Display name
   urlPattern: string, // Pattern to match
   matchType: string,  // 'glob' | 'regex' | 'exact' | 'contains'
+  enabled: boolean,   // Whether rule is active (defaults to true; false disables without deleting)
   delay: number      // Countdown duration in ms
 }
 ```
@@ -80,6 +81,7 @@ Page complete → Poll for button (max 3s) → Found? → Green highlight → Wa
   matchType: string,  // 'glob' | 'regex' | 'exact' | 'contains'
   selector: string,   // CSS selector
   buttonText: string, // Optional text filter
+  enabled: boolean,   // Whether rule is active (defaults to true; false disables without deleting)
   delay: number      // Wait time AFTER finding button (not search time)
 }
 ```
@@ -141,14 +143,6 @@ The seed is not re-applied on update; only fresh installs see changes. Existing 
 **Why needed:** On hash-routed SPAs (common in OAuth approval flows), duplicate events cause the same button to be clicked twice, which can trigger backend errors on the second click.
 
 **Code location:** `background.js:3-14` (tracking data structure), `background.js:71-95` (duplicate check)
-
-## UI Styling
-
-**Rule Card (`.rule-card`):**
-- Background: `#f8f9fa` (light gray)
-- Border: `#e9ecef`
-- Fully editable inputs
-- Toggle + Delete buttons
 
 ## Important Notes
 
