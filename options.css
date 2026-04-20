@@ -71,6 +71,8 @@
   --cornflower:#B8D6B1; --cornflower-600:#86B381; --cornflower-050:#1B2E20;
   --cornflower-rgb:184 214 177;
   --cream:#0F1510; --cream-200:#1A2319; --cream-300:#233022;
+  --white:#1E2822;
+  --border:#2A3B2E; --border-strong:#3A4D3F; --rule:#1F2A23;
   --ok:#9DC67A;
 }
 
@@ -92,6 +94,8 @@
   --cornflower:#E8C468; --cornflower-600:#BFA050; --cornflower-050:#2A2316;
   --cornflower-rgb:232 196 104;
   --cream:#0E0E10; --cream-200:#1A1A1D; --cream-300:#25252A;
+  --white:#1E1E22;
+  --border:#2F2F34; --border-strong:#3E3E44; --rule:#24242A;
   --warn:#ED9B5B;
 }
 
@@ -113,6 +117,8 @@
   --cornflower:#9FD8CE; --cornflower-600:#6CB3A7; --cornflower-050:#0F2A28;
   --cornflower-rgb:159 216 206;
   --cream:#08110F; --cream-200:#111F1C; --cream-300:#1B2A26;
+  --white:#162724;
+  --border:#1F322F; --border-strong:#2E4440; --rule:#19292B;
   --ok:#8FBB63;
 }
 *,*::before,*::after { box-sizing:border-box; }
