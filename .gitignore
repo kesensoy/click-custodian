@@ -41,3 +41,7 @@ coverage/
 
 # Local AI workflow artifacts (specs, plans, transcripts)
 docs/superpowers/
+
+# Design exploration artifacts (mockups, screenshots, logo source variants)
+design-explorations/
+icons/proposed/
