@@ -14,8 +14,9 @@ Browser workflows are full of meaningless clicks — OAuth callback tabs that si
 
 - **Tab Auto-Close** — Automatically closes matching tabs with a short countdown (press Esc to cancel).
 - **Button Auto-Click** — Automatically finds and clicks buttons on matching pages using smart polling (`MutationObserver`, 3s max).
-- **Two-tier rules** — Ships with a small set of universally useful defaults; you add your own custom rules on top.
+- **All rules are yours** — One flat list, every rule fully editable. Fresh installs get a small example seed to edit, replace, or delete.
 - **Pattern matching** — `glob`, `regex`, `exact`, or `contains`.
+- **Import / Export** — Share rule sets or back them up as JSON.
 - **Visual feedback** — Green highlight confirms a button was found before it's clicked.
 
 ## Installation
@@ -29,17 +30,16 @@ Then in Chrome:
 2. Enable **Developer mode** (top-right toggle)
 3. Click **Load unpacked** and select the cloned folder
 
-The extension loads with default rules enabled. Click the extension icon → **Open Settings** to customize.
+On fresh install, the extension seeds two example tab-close rules so you can see the shape of things. Click the extension icon → **Open Settings** to edit, delete, or add your own.
 
-## Default Rules
+## Seed Examples
 
-Three generic rules ship enabled by default:
+Fresh installs come with these examples pre-loaded. Edit or delete them like any other rule — they're not special.
 
-- **AWS CLI OAuth Callback** — `*://127.0.0.1:*/oauth/callback*` (tab close)
-- **Microsoft Azure App Verify** — `https://login.microsoftonline.com/appverify` (tab close)
-- **Generic Localhost OAuth Callback** — `*://localhost:*/callback?code=*` (tab close)
+- **Localhost OAuth callback** — `*://localhost:*/*callback*` (glob, tab close)
+- **Azure AD device code approval** — `https://login.microsoftonline.com/appverify` (exact, tab close)
 
-Disable any default you don't want in Settings. Add your own rules alongside them.
+The seed is defined in `seed-examples.json` and only runs on first install. Updates never touch your rules.
 
 ## Usage
 
@@ -74,27 +74,33 @@ Automatically click a button on matching pages.
 
 ## Configuration
 
-### Two-Tier System
-
-- **Default rules** (light blue card, 📌 icon) — Ship with the extension. You can toggle them on/off but not edit them. Update automatically when `defaults.json` version bumps.
-- **Custom rules** (gray card) — Fully editable, fully yours. Never touched by extension updates.
+All rules live in a single flat list on the Settings page. Every rule has the same card — toggle, edit, delete. There is no separate "built-in" tier; the examples you see on a fresh install are ordinary rules seeded once.
 
 ### Export / Import
 
-Settings page → **Export Config** downloads your custom rules and default-toggle state as JSON. **Import Config** loads them back. Use this to sync between machines or share a rule set.
+The sticky action bar on the Settings page has **Import**, **Export**, and **Reset to examples**.
 
-### Adding to Defaults (for forks)
+- **Export** downloads `click-custodian-rules-YYYY-MM-DD.json` containing your full rule list.
+- **Import** opens a dialog with two modes:
+  - **Merge** appends the imported rules to your existing list (imported rules get fresh IDs to avoid collisions).
+  - **Replace all my rules** wipes your current rules and loads the imported file (destructive; confirm-gated).
+- **Reset to examples** wipes your current rules and re-seeds from `seed-examples.json` (destructive).
 
-Edit `defaults.json`, bump its `version` field, and bump `manifest.json`'s `version` to match. Reload the extension. Existing user toggles are preserved; new defaults enable by default.
+Use Export/Import to sync between machines or share a rule set.
+
+### Changing the Seed (for forks)
+
+Edit `seed-examples.json` and reload the extension. The seed only runs on fresh install, so existing users won't see the change — use **Reset to examples** to re-seed an installed copy during development.
 
 ## Architecture
 
 ```
 background.js (service worker)
-├─ Loads defaults.json on install/update
+├─ Seeds from seed-examples.json on fresh install
+├─ Migrates legacy two-tier shape on update (one-time)
 ├─ Monitors chrome.tabs.onUpdated
-├─ Matches URLs against combined default + user rules
-├─ Handles conflicts when both rule types match
+├─ Matches URLs against the flat rule list
+├─ Handles conflicts when both a close and click rule match
 ├─ Injects countdown for tab close
 └─ Sends messages to content.js for button clicks
 
@@ -105,8 +111,8 @@ content.js (content script)
 └─ Clicks after configured delay
 
 options.js (settings UI)
-├─ Renders default rules (read-only, toggle only)
-├─ Renders user rules (fully editable)
+├─ Renders the flat rule list (all editable)
+├─ Import / Export / Reset to examples
 └─ Saves to Chrome sync storage
 ```
 
@@ -114,21 +120,12 @@ options.js (settings UI)
 
 ```javascript
 chrome.storage.sync = {
-  defaultRules: {          // From defaults.json
-    version: "1.0.0",
-    tabCloseRules: [...],
-    buttonClickRules: [...]
-  },
-  userRules: {             // User's custom rules
-    tabCloseRules: [...],
-    buttonClickRules: [...]
-  },
-  defaultRulesEnabled: {   // Per-user toggles
-    "rule-id": boolean
-  },
-  defaultsVersion: "1.0.0"
+  tabCloseRules: [...],     // All tab-close rules (user-owned)
+  buttonClickRules: [...]   // All button-click rules (user-owned)
 }
 ```
+
+Each rule carries its own `enabled` flag — toggling a rule in the UI flips the flag on the rule object, not a separate map.
 
 ## Development
 
