@@ -128,7 +128,7 @@ function renderCloseRules() {
   const count = document.getElementById('close-user-count');
   list.innerHTML = '';
   const arr = rules.tabCloseRules;
-  count.textContent = pluralRules(arr.length);
+  if (count) count.textContent = pluralRules(arr.length);
   if (arr.length > 0) {
     list.appendChild(closeHeaderRow());
     arr.forEach((rule, index) => list.appendChild(renderUserCloseRow(rule, index)));
@@ -141,7 +141,7 @@ function renderClickRules() {
   const count = document.getElementById('click-user-count');
   list.innerHTML = '';
   const arr = rules.buttonClickRules;
-  count.textContent = pluralRules(arr.length);
+  if (count) count.textContent = pluralRules(arr.length);
   if (arr.length > 0) {
     list.appendChild(clickHeaderRow());
     arr.forEach((rule, index) => list.appendChild(renderUserClickRow(rule, index)));

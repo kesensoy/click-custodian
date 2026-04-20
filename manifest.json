@@ -24,12 +24,6 @@
       "run_at": "document_idle"
     }
   ],
-  "web_accessible_resources": [
-    {
-      "resources": ["seed-examples.json"],
-      "matches": ["<all_urls>"]
-    }
-  ],
   "options_page": "options.html",
   "action": {
     "default_popup": "popup.html",
