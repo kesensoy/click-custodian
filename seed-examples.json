@@ -1,0 +1,21 @@
+{
+  "tabCloseRules": [
+    {
+      "id": "seed-localhost-oauth",
+      "name": "Localhost OAuth callback",
+      "urlPattern": "*://localhost:*/*callback*",
+      "matchType": "glob",
+      "enabled": true,
+      "delay": 3000
+    },
+    {
+      "id": "seed-azure-appverify",
+      "name": "Azure AD device code approval",
+      "urlPattern": "https://login.microsoftonline.com/appverify",
+      "matchType": "exact",
+      "enabled": true,
+      "delay": 3000
+    }
+  ],
+  "buttonClickRules": []
+}
