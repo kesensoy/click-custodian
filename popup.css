@@ -197,7 +197,12 @@ body {
 .status.warning { color:var(--warn); }
 .status.warning .dot { background:var(--warn); box-shadow:0 0 0 3px rgba(180,123,42,.20); animation:none; }
 .status.info { color:var(--muted); }
-/* info (and the default, classless state) keep the pulsing cornflower dot. */
+.status.info .dot {
+  background:var(--muted);
+  box-shadow:0 0 0 3px rgba(141,150,174,.18);
+  animation:none;
+}
+/* The default, classless state keeps the pulsing cornflower dot (resting). */
 
 @keyframes cc-status-pulse {
   0%, 100% { opacity:1; }

@@ -55,7 +55,7 @@ Page complete → Poll for button (max 3s) → Found? → Green highlight → Wa
 **Single Rule List:**
 - All rules render as editable rows with toggle + delete.
 - Import/Export buttons in the sticky action bar support rule-set sharing.
-- "Reset to examples" button replaces the current rules with the bundled seed.
+- "Reset to defaults" button replaces the current rules with the bundled seed.
 - Import dialog offers Replace (destructive, confirm-gated) or Merge (re-IDs imported rules).
 
 ## Rule Schema
@@ -97,7 +97,7 @@ Bundled in `seed-examples.json`, loaded once on first install:
 **Button Click Rules:**
 (none shipped — users add their own)
 
-Users can delete seeded rules at any time; they are not restored on update. The "Reset to examples" button reloads the seed destructively.
+Users can delete seeded rules at any time; they are not restored on update. The "Reset to defaults" button reloads the seed destructively.
 
 ## Pattern Matching
 
@@ -114,7 +114,7 @@ If you want to change what fresh installs get:
 1. Edit `seed-examples.json`.
 2. Bump `manifest.json` version so the extension reloads.
 
-The seed is not re-applied on update; only fresh installs see changes. Existing users need to click "Reset to examples" to pick up new seed content.
+The seed is not re-applied on update; only fresh installs see changes. Existing users need to click "Reset to defaults" to pick up new seed content.
 
 ## Key Behaviors
 

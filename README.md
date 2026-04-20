@@ -78,19 +78,19 @@ All rules live in a single flat list on the Settings page. Every rule has the sa
 
 ### Export / Import
 
-The sticky action bar on the Settings page has **Import**, **Export**, and **Reset to examples**.
+The sticky action bar on the Settings page has **Import**, **Export**, and **Reset to defaults**.
 
 - **Export** downloads `click-custodian-rules-YYYY-MM-DD.json` containing your full rule list.
 - **Import** opens a dialog with two modes:
   - **Merge** appends the imported rules to your existing list (imported rules get fresh IDs to avoid collisions).
   - **Replace all my rules** wipes your current rules and loads the imported file (destructive; confirm-gated).
-- **Reset to examples** wipes your current rules and re-seeds from `seed-examples.json` (destructive).
+- **Reset to defaults** wipes your current rules and re-seeds from `seed-examples.json` (destructive).
 
 Use Export/Import to sync between machines or share a rule set.
 
 ### Changing the Seed (for forks)
 
-Edit `seed-examples.json` and reload the extension. The seed only runs on fresh install, so existing users won't see the change — use **Reset to examples** to re-seed an installed copy during development.
+Edit `seed-examples.json` and reload the extension. The seed only runs on fresh install, so existing users won't see the change — use **Reset to defaults** to re-seed an installed copy during development.
 
 ## Architecture
 
@@ -112,7 +112,7 @@ content.js (content script)
 
 options.js (settings UI)
 ├─ Renders the flat rule list (all editable)
-├─ Import / Export / Reset to examples
+├─ Import / Export / Reset to defaults
 └─ Saves to Chrome sync storage
 ```
 

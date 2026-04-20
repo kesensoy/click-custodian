@@ -440,7 +440,7 @@ function filterRules(pageId, query) {
 
 // ---------- Reset / Import / Export ----------
 async function resetConfig() {
-  if (!confirm('Reset to example rules? This deletes your current rules and loads the bundled examples.')) return;
+  if (!confirm('Reset to defaults? This deletes your current rules and loads the bundled defaults.')) return;
   try {
     const response = await fetch(chrome.runtime.getURL('seed-examples.json'));
     const seed = await response.json();
@@ -454,7 +454,7 @@ async function resetConfig() {
     });
     markClean();
     renderAll();
-    showStatus('Reset to example rules', 'success');
+    showStatus('Reset to defaults', 'success');
   } catch (error) {
     showStatus('Failed to load examples: ' + error.message, 'error');
   }

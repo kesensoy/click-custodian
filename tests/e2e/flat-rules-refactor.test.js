@@ -450,7 +450,7 @@ test.describe('Options UI — import/export/reset', () => {
     // Wait for toast success
     await page.waitForFunction(() => {
       const el = document.getElementById('status-message');
-      return el && /Reset to example/i.test(el.textContent);
+      return el && /Reset to default/i.test(el.textContent);
     }, { timeout: 3000 });
 
     const storage = await readStorage(env.context);

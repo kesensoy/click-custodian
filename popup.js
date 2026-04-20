@@ -99,13 +99,14 @@ function globMatch(str, pattern) {
 
 // Resting status shown by default and restored after a transient status fades.
 // Mirrors the initial markup in popup.html (the .status-msg text).
+// The resting state is CLASSLESS (no success/error/warning/info) — that's
+// what the pulsing cornflower dot keys off of in popup.css. Passing a null/
+// falsy type to setStatus reproduces that classless default.
 const RESTING_STATUS_MESSAGE = 'Extension is running';
-const RESTING_STATUS_TYPE = 'info';
 const STATUS_REVERT_MS = 7000;
 let statusRevertTimer = null;
 
 function setStatus(message, type) {
-  const resolvedType = type || 'info';
   const statusEl = document.getElementById('status-text');
   const msgEl = statusEl.querySelector('.status-msg');
   if (msgEl) {
@@ -115,9 +116,10 @@ function setStatus(message, type) {
     statusEl.textContent = message;
   }
 
-  // Use theme-aware classes; see popup.css (.status.success/.error/.warning/.info)
+  // Use theme-aware classes; see popup.css (.status.success/.error/.warning/.info).
+  // A null/undefined type returns to the classless resting state (pulsing cornflower dot).
   statusEl.classList.remove('success', 'error', 'warning', 'info');
-  statusEl.classList.add(resolvedType);
+  if (type) statusEl.classList.add(type);
 
   // Any prior revert timer is now stale — reset so two-in-flight statuses
   // don't race to revert the newer one.
@@ -127,11 +129,11 @@ function setStatus(message, type) {
   }
 
   // Don't auto-revert the resting state itself (would schedule a no-op loop).
-  const isResting = resolvedType === RESTING_STATUS_TYPE && message === RESTING_STATUS_MESSAGE;
+  const isResting = !type && message === RESTING_STATUS_MESSAGE;
   if (!isResting) {
     statusRevertTimer = setTimeout(() => {
       statusRevertTimer = null;
-      setStatus(RESTING_STATUS_MESSAGE, RESTING_STATUS_TYPE);
+      setStatus(RESTING_STATUS_MESSAGE, null);
     }, STATUS_REVERT_MS);
   }
 }
