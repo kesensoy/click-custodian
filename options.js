@@ -2,12 +2,11 @@
 // (sidebar + grid-aligned rule rows + sticky action bar + dark mode)
 
 // ---------- State ----------
-let defaultRules = { tabCloseRules: [], buttonClickRules: [] };
-let userRules = { tabCloseRules: [], buttonClickRules: [] };
-let defaultRulesEnabled = {};
+let rules = { tabCloseRules: [], buttonClickRules: [] };
 let hasUnsavedChanges = false;
 let currentPage = 'page-close';
 let currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+let pendingImport = null;
 
 // ---------- Entry ----------
 document.addEventListener('DOMContentLoaded', async () => {
@@ -23,10 +22,11 @@ window.addEventListener('beforeunload', (e) => {
 
 // ---------- Storage ----------
 async function loadConfig() {
-  const storage = await chrome.storage.sync.get(['defaultRules', 'userRules', 'defaultRulesEnabled', 'theme']);
-  defaultRules = storage.defaultRules || { tabCloseRules: [], buttonClickRules: [] };
-  userRules = storage.userRules || { tabCloseRules: [], buttonClickRules: [] };
-  defaultRulesEnabled = storage.defaultRulesEnabled || {};
+  const storage = await chrome.storage.sync.get(['tabCloseRules', 'buttonClickRules', 'theme']);
+  rules = {
+    tabCloseRules: storage.tabCloseRules || [],
+    buttonClickRules: storage.buttonClickRules || []
+  };
   if (storage.theme && storage.theme !== currentTheme) {
     currentTheme = storage.theme;
     document.documentElement.setAttribute('data-theme', currentTheme);
@@ -36,7 +36,10 @@ async function loadConfig() {
 
 async function saveConfig() {
   try {
-    await chrome.storage.sync.set({ userRules, defaultRulesEnabled });
+    await chrome.storage.sync.set({
+      tabCloseRules: rules.tabCloseRules,
+      buttonClickRules: rules.buttonClickRules
+    });
     markClean();
     showStatus('Configuration saved', 'success');
   } catch (error) {
@@ -114,78 +117,36 @@ function renderAll() {
 }
 
 function updateNavCounts() {
-  const closeCount = defaultRules.tabCloseRules.length + userRules.tabCloseRules.length;
-  const clickCount = defaultRules.buttonClickRules.length + userRules.buttonClickRules.length;
-  document.getElementById('nav-close-count').textContent = closeCount;
-  document.getElementById('nav-click-count').textContent = clickCount;
+  document.getElementById('nav-close-count').textContent = rules.tabCloseRules.length;
+  document.getElementById('nav-click-count').textContent = rules.buttonClickRules.length;
 }
 
 function pluralRules(n) { return `${n} rule${n === 1 ? '' : 's'}`; }
 
 function renderCloseRules() {
-  const defList = document.getElementById('close-default-list');
-  const usrList = document.getElementById('close-user-list');
-  const defHead = document.getElementById('close-default-head');
-  const defCount = document.getElementById('close-default-count');
-  const usrCount = document.getElementById('close-user-count');
-
-  // Default rules
-  defList.innerHTML = '';
-  const defaults = defaultRules.tabCloseRules;
-  defCount.textContent = pluralRules(defaults.length);
-  if (defaults.length === 0) {
-    defHead.style.display = 'none';
-    defList.style.display = 'none';
-  } else {
-    defHead.style.display = '';
-    defList.style.display = '';
-    defList.appendChild(closeHeaderRow());
-    defaults.forEach(rule => defList.appendChild(renderDefaultCloseRow(rule)));
+  const list = document.getElementById('close-user-list');
+  const count = document.getElementById('close-user-count');
+  list.innerHTML = '';
+  const arr = rules.tabCloseRules;
+  count.textContent = pluralRules(arr.length);
+  if (arr.length > 0) {
+    list.appendChild(closeHeaderRow());
+    arr.forEach((rule, index) => list.appendChild(renderUserCloseRow(rule, index)));
   }
-
-  // User rules
-  usrList.innerHTML = '';
-  const users = userRules.tabCloseRules;
-  usrCount.textContent = pluralRules(users.length);
-  if (users.length > 0) {
-    usrList.appendChild(closeHeaderRow());
-    users.forEach((rule, index) => usrList.appendChild(renderUserCloseRow(rule, index)));
-  }
-  usrList.appendChild(addRow('close', 'Add a tab-close rule'));
+  list.appendChild(addRow('close', 'Add a tab-close rule'));
 }
 
 function renderClickRules() {
-  const defList = document.getElementById('click-default-list');
-  const usrList = document.getElementById('click-user-list');
-  const defHead = document.getElementById('click-default-head');
-  const defCount = document.getElementById('click-default-count');
-  const usrCount = document.getElementById('click-user-count');
-
-  // Default rules — may be 0, in which case show the "none ship by default" note
-  defList.innerHTML = '';
-  const defaults = defaultRules.buttonClickRules;
-  defCount.textContent = pluralRules(defaults.length);
-  defHead.style.display = '';
-  defList.style.display = '';
-  if (defaults.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'empty-default';
-    empty.textContent = '// no built-in button-click rules ship with the extension';
-    defList.appendChild(empty);
-  } else {
-    defList.appendChild(clickHeaderRow());
-    defaults.forEach(rule => defList.appendChild(renderDefaultClickRow(rule)));
+  const list = document.getElementById('click-user-list');
+  const count = document.getElementById('click-user-count');
+  list.innerHTML = '';
+  const arr = rules.buttonClickRules;
+  count.textContent = pluralRules(arr.length);
+  if (arr.length > 0) {
+    list.appendChild(clickHeaderRow());
+    arr.forEach((rule, index) => list.appendChild(renderUserClickRow(rule, index)));
   }
-
-  // User rules
-  usrList.innerHTML = '';
-  const users = userRules.buttonClickRules;
-  usrCount.textContent = pluralRules(users.length);
-  if (users.length > 0) {
-    usrList.appendChild(clickHeaderRow());
-    users.forEach((rule, index) => usrList.appendChild(renderUserClickRow(rule, index)));
-  }
-  usrList.appendChild(addRow('click', 'Add a button-click rule'));
+  list.appendChild(addRow('click', 'Add a button-click rule'));
 }
 
 function closeHeaderRow() {
@@ -199,41 +160,6 @@ function clickHeaderRow() {
   const row = document.createElement('div');
   row.className = 'rule-row header grid-click';
   row.innerHTML = `<span>Name</span><span>URL pattern</span><span>Selector</span><span>Button text</span><span>Delay</span><span style="text-align:center">On</span><span></span>`;
-  return row;
-}
-
-function renderDefaultCloseRow(rule) {
-  const enabled = defaultRulesEnabled[rule.id] !== false;
-  const row = document.createElement('div');
-  row.className = `rule-row grid-close is-default${enabled ? '' : ' is-disabled'}`;
-  row.dataset.defaultId = rule.id;
-  row.dataset.kind = 'default-close';
-  row.innerHTML = `
-    <div class="cell-name"><span class="pill pill-builtin"><svg><use href="#i-star"/></svg>Built-in</span><span class="nm">${escapeHTML(rule.name)}</span></div>
-    <input class="inline" readonly value="${escapeHTML(rule.urlPattern)}" />
-    <span><span class="pill pill-match">${escapeHTML(rule.matchType)}</span></span>
-    <div class="cell-delay"><input class="inline" readonly value="${escapeHTML(rule.delay)}" /><span class="unit">ms</span></div>
-    <span class="toggle${enabled ? ' on' : ''}" role="switch" aria-checked="${enabled}" tabindex="0" data-default-toggle="${escapeHTML(rule.id)}"></span>
-    <div class="row-actions"><button class="icon-btn" title="Locked — built-in rule"><svg width="13" height="13"><use href="#i-lock"/></svg></button></div>
-  `;
-  return row;
-}
-
-function renderDefaultClickRow(rule) {
-  const enabled = defaultRulesEnabled[rule.id] !== false;
-  const row = document.createElement('div');
-  row.className = `rule-row grid-click is-default${enabled ? '' : ' is-disabled'}`;
-  row.dataset.defaultId = rule.id;
-  row.dataset.kind = 'default-click';
-  row.innerHTML = `
-    <div class="cell-name"><span class="pill pill-builtin"><svg><use href="#i-star"/></svg>Built-in</span><span class="nm">${escapeHTML(rule.name)}</span></div>
-    <input class="inline" readonly value="${escapeHTML(rule.urlPattern)}" />
-    <input class="inline" readonly value="${escapeHTML(rule.selector || '')}" />
-    <input class="inline${rule.buttonText ? '' : ' placeholder-empty'}" readonly value="${escapeHTML(rule.buttonText || '')}" placeholder="(any)" />
-    <div class="cell-delay"><input class="inline" readonly value="${escapeHTML(rule.delay)}" /><span class="unit">ms</span></div>
-    <span class="toggle${enabled ? ' on' : ''}" role="switch" aria-checked="${enabled}" tabindex="0" data-default-toggle="${escapeHTML(rule.id)}"></span>
-    <div class="row-actions"><button class="icon-btn" title="Locked — built-in rule"><svg width="13" height="13"><use href="#i-lock"/></svg></button></div>
-  `;
   return row;
 }
 
@@ -370,8 +296,6 @@ function restoreActivePage() {
 // ---------- Rule table handlers ----------
 function handleTableClick(e) {
   // Toggle on a rule row
-  const defToggle = e.target.closest('[data-default-toggle]');
-  if (defToggle) { toggleDefaultRule(defToggle); return; }
   const userToggle = e.target.closest('[data-user-toggle]');
   if (userToggle) { toggleUserRule(userToggle); return; }
 
@@ -392,7 +316,7 @@ function handleTableChange(e) {
     const field = e.target.dataset.field;
     if (!field) return;
     const index = Number(row.dataset.userIndex);
-    const arr = kind === 'user-close' ? userRules.tabCloseRules : userRules.buttonClickRules;
+    const arr = kind === 'user-close' ? rules.tabCloseRules : rules.buttonClickRules;
     let value = e.target.value;
     if (field === 'delay') {
       value = clampDelay(value, 0, 60000, kind === 'user-close' ? 3000 : 1000);
@@ -415,23 +339,12 @@ function handleTableKeydown(e) {
   }
 }
 
-function toggleDefaultRule(toggleEl) {
-  const id = toggleEl.dataset.defaultToggle;
-  const nowEnabled = !toggleEl.classList.contains('on');
-  toggleEl.classList.toggle('on', nowEnabled);
-  toggleEl.setAttribute('aria-checked', nowEnabled ? 'true' : 'false');
-  const row = toggleEl.closest('.rule-row');
-  if (row) row.classList.toggle('is-disabled', !nowEnabled);
-  defaultRulesEnabled[id] = nowEnabled;
-  markDirty();
-}
-
 function toggleUserRule(toggleEl) {
   const row = toggleEl.closest('.rule-row');
   if (!row) return;
   const kind = row.dataset.kind;
   const index = Number(row.dataset.userIndex);
-  const arr = kind === 'user-close' ? userRules.tabCloseRules : userRules.buttonClickRules;
+  const arr = kind === 'user-close' ? rules.tabCloseRules : rules.buttonClickRules;
   const nowEnabled = !toggleEl.classList.contains('on');
   toggleEl.classList.toggle('on', nowEnabled);
   toggleEl.setAttribute('aria-checked', nowEnabled ? 'true' : 'false');
@@ -445,8 +358,8 @@ function deleteUserRule(row) {
   if (!confirm('Delete this rule?')) return;
   const kind = row.dataset.kind;
   const index = Number(row.dataset.userIndex);
-  if (kind === 'user-close') userRules.tabCloseRules.splice(index, 1);
-  else if (kind === 'user-click') userRules.buttonClickRules.splice(index, 1);
+  if (kind === 'user-close') rules.tabCloseRules.splice(index, 1);
+  else if (kind === 'user-click') rules.buttonClickRules.splice(index, 1);
   markDirty();
   renderAll();
 }
@@ -458,7 +371,7 @@ function addKindRule(kind) {
 
 function addCloseRule() {
   const pattern = '*://example.com/*';
-  userRules.tabCloseRules.push({
+  rules.tabCloseRules.push({
     id: generateId(),
     name: generateDefaultRuleName(pattern),
     urlPattern: pattern,
@@ -475,7 +388,7 @@ function addCloseRule() {
 
 function addClickRule() {
   const pattern = '*://example.com/*';
-  userRules.buttonClickRules.push({
+  rules.buttonClickRules.push({
     id: generateId(),
     name: generateDefaultRuleName(pattern),
     urlPattern: pattern,
@@ -518,27 +431,41 @@ function filterRules(pageId, query) {
 
 // ---------- Reset / Import / Export ----------
 async function resetConfig() {
-  if (!confirm('Reset Click Custodian? This deletes all custom rules and re-enables every built-in.')) return;
-  userRules = { tabCloseRules: [], buttonClickRules: [] };
-  defaultRulesEnabled = {};
-  [...defaultRules.tabCloseRules, ...defaultRules.buttonClickRules].forEach(r => { defaultRulesEnabled[r.id] = true; });
-  await chrome.storage.sync.set({ userRules, defaultRulesEnabled });
-  markClean();
-  renderAll();
-  showStatus('Reset — all defaults re-enabled, custom rules cleared', 'success');
+  if (!confirm('Reset to example rules? This deletes your current rules and loads the bundled examples.')) return;
+  try {
+    const response = await fetch(chrome.runtime.getURL('seed-examples.json'));
+    const seed = await response.json();
+    rules = {
+      tabCloseRules: seed.tabCloseRules || [],
+      buttonClickRules: seed.buttonClickRules || []
+    };
+    await chrome.storage.sync.set({
+      tabCloseRules: rules.tabCloseRules,
+      buttonClickRules: rules.buttonClickRules
+    });
+    markClean();
+    renderAll();
+    showStatus('Reset to example rules', 'success');
+  } catch (error) {
+    showStatus('Failed to load examples: ' + error.message, 'error');
+  }
 }
 
 function exportConfig() {
   if (hasUnsavedChanges) {
     if (!confirm('You have unsaved changes. The export will NOT include them. Continue?')) return;
   }
-  const data = { userRules, defaultRulesEnabled };
+  const data = {
+    tabCloseRules: rules.tabCloseRules,
+    buttonClickRules: rules.buttonClickRules
+  };
+  const date = new Date().toISOString().slice(0, 10);
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'click-custodian-config.json'; a.click();
+  a.href = url; a.download = `click-custodian-rules-${date}.json`; a.click();
   URL.revokeObjectURL(url);
-  showStatus('Configuration exported', 'success');
+  showStatus('Rules exported', 'success');
 }
 
 async function importConfig(e) {
@@ -547,20 +474,20 @@ async function importConfig(e) {
   try {
     const text = await file.text();
     const imported = JSON.parse(text);
-    if (!imported.userRules || !imported.userRules.tabCloseRules || !imported.userRules.buttonClickRules) {
-      throw new Error('Invalid configuration format');
+    if (!Array.isArray(imported.tabCloseRules) || !Array.isArray(imported.buttonClickRules)) {
+      throw new Error('File must contain tabCloseRules and buttonClickRules arrays');
     }
-    userRules = imported.userRules;
-    defaultRulesEnabled = imported.defaultRulesEnabled || {};
-    await chrome.storage.sync.set({ userRules, defaultRulesEnabled });
-    markClean();
-    renderAll();
-    showStatus('Configuration imported', 'success');
+    pendingImport = imported;
+    openImportDialog(imported);
   } catch (error) {
-    showStatus('Failed to import: ' + error.message, 'error');
+    showStatus('Failed to parse file: ' + error.message, 'error');
   }
   e.target.value = '';
 }
+
+function openImportDialog(imported) { /* stub — filled in Task 9 */ }
+function closeImportDialog() { pendingImport = null; }
+function commitImport(mode) { /* stub — filled in Task 9 */ }
 
 // ---------- Overlay ----------
 function openOverlay() { document.getElementById('overlay').classList.add('open'); }

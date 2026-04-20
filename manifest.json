@@ -26,7 +26,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["defaults.json"],
+      "resources": ["seed-examples.json"],
       "matches": ["<all_urls>"]
     }
   ],

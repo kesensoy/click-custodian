@@ -58,77 +58,54 @@ async function sendMessageWithRetry(tabId, message, maxRetries = 3, retryDelay =
   return false;
 }
 
-// Load default rules from JSON file
-async function loadDefaultRules() {
+chrome.runtime.onInstalled.addListener(async (details) => {
+  if (details.reason === 'install') {
+    await seedFromExamples();
+  } else if (details.reason === 'update') {
+    await migrateLegacyShape();
+  }
+});
+
+async function seedFromExamples() {
   try {
-    const response = await fetch(chrome.runtime.getURL('defaults.json'));
-    const defaults = await response.json();
-    return defaults;
+    const response = await fetch(chrome.runtime.getURL('seed-examples.json'));
+    const seed = await response.json();
+    await chrome.storage.sync.set({
+      tabCloseRules: seed.tabCloseRules || [],
+      buttonClickRules: seed.buttonClickRules || []
+    });
+    console.log('[DEBUG] Seeded from seed-examples.json');
   } catch (error) {
-    debugError('ERROR', 'Failed to load defaults.json:', error);
-    return { version: '1.0.0', tabCloseRules: [], buttonClickRules: [] };
+    console.error('[DEBUG] Failed to seed:', error);
+    await chrome.storage.sync.set({ tabCloseRules: [], buttonClickRules: [] });
   }
 }
 
-// Initialize or update storage
-chrome.runtime.onInstalled.addListener(async ({ reason }) => {
-  try {
-    debugLog('DEBUG', 'Extension installed/updated, loading defaults...');
-    const defaults = await loadDefaultRules();
-    const storage = await chrome.storage.sync.get(['defaultRules', 'userRules', 'defaultsVersion', 'defaultRulesEnabled']);
-
-    // First install - initialize with defaults
-    if (reason === 'install' || !storage.userRules) {
-      const defaultRulesEnabled = {};
-
-      // All defaults enabled by default
-      [...defaults.tabCloseRules, ...defaults.buttonClickRules].forEach(rule => {
-        defaultRulesEnabled[rule.id] = true;
-      });
-
-      await chrome.storage.sync.set({
-        defaultRules: defaults,
-        userRules: { tabCloseRules: [], buttonClickRules: [] },
-        defaultsVersion: defaults.version,
-        defaultRulesEnabled
-      });
-
-      debugLog('DEBUG', 'Click Custodian initialized with default rules');
-
-      if (reason === 'install') {
-        debugLog('DEBUG', 'Extension installed for the first time');
-      }
-    }
-    // Extension update - refresh defaults if version changed
-    else if (reason === 'update' && storage.defaultsVersion !== defaults.version) {
-      // Preserve user's enable/disable preferences for existing defaults
-      const existingEnabled = storage.defaultRulesEnabled || {};
-      const newEnabled = {};
-
-      // Keep existing preferences, enable new defaults by default
-      [...defaults.tabCloseRules, ...defaults.buttonClickRules].forEach(rule => {
-        newEnabled[rule.id] = existingEnabled[rule.id] !== undefined ? existingEnabled[rule.id] : true;
-      });
-
-      await chrome.storage.sync.set({
-        defaultRules: defaults,
-        defaultsVersion: defaults.version,
-        defaultRulesEnabled: newEnabled
-      });
-
-      debugLog('DEBUG', 'Click Custodian defaults updated to version', defaults.version);
-    }
-
-    debugLog('DEBUG', 'Default rules loaded successfully');
-  } catch (error) {
-    debugError('CRITICAL', 'Failed to load default rules on install:', error);
-
-    showCriticalError(
-      'Click Custodian Setup Error',
-      'Failed to load default rules. Please reinstall the extension.'
-    );
+async function migrateLegacyShape() {
+  const storage = await chrome.storage.sync.get(null);
+  if (Array.isArray(storage.tabCloseRules) && Array.isArray(storage.buttonClickRules)
+      && !storage.defaultRules && !storage.userRules) {
+    return;
   }
-});
+
+  const enabled = storage.defaultRulesEnabled || {};
+  const defaults = storage.defaultRules || { tabCloseRules: [], buttonClickRules: [] };
+  const users = storage.userRules || { tabCloseRules: [], buttonClickRules: [] };
+
+  const activeDefaults = {
+    tabCloseRules: (defaults.tabCloseRules || []).filter(r => enabled[r.id] !== false),
+    buttonClickRules: (defaults.buttonClickRules || []).filter(r => enabled[r.id] !== false)
+  };
+
+  const flat = {
+    tabCloseRules: [...activeDefaults.tabCloseRules, ...(users.tabCloseRules || [])],
+    buttonClickRules: [...activeDefaults.buttonClickRules, ...(users.buttonClickRules || [])]
+  };
+
+  await chrome.storage.sync.set(flat);
+  await chrome.storage.sync.remove(['defaultRules', 'userRules', 'defaultRulesEnabled', 'defaultsVersion']);
+  console.log('[DEBUG] Migrated legacy storage shape to flat');
+}
 
 // Monitor tab updates
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
@@ -157,37 +134,15 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
   debugLog('DEBUG', 'Tab updated:', { tabId, url: tab.url, status: changeInfo.status });
 
-  const storage = await chrome.storage.sync.get(['defaultRules', 'userRules', 'defaultRulesEnabled']);
-  if (!storage.defaultRules || !storage.userRules) {
-    debugLog('DEBUG', 'No rules in storage, skipping');
-    return;
-  }
+  const { tabCloseRules = [], buttonClickRules = [] } = await chrome.storage.sync.get(['tabCloseRules', 'buttonClickRules']);
 
   debugLog('DEBUG', 'Loaded storage:', {
-    defaultCloseRules: storage.defaultRules.tabCloseRules.length,
-    defaultClickRules: storage.defaultRules.buttonClickRules.length,
-    userCloseRules: storage.userRules.tabCloseRules.length,
-    userClickRules: storage.userRules.buttonClickRules.length
+    closeRules: tabCloseRules.length,
+    clickRules: buttonClickRules.length
   });
 
-  // Combine default rules (with enabled state) and user rules
-  const allCloseRules = [
-    ...storage.defaultRules.tabCloseRules.map(rule => ({
-      ...rule,
-      enabled: storage.defaultRulesEnabled[rule.id] !== false,
-      isDefault: true
-    })),
-    ...storage.userRules.tabCloseRules
-  ];
-
-  const allClickRules = [
-    ...storage.defaultRules.buttonClickRules.map(rule => ({
-      ...rule,
-      enabled: storage.defaultRulesEnabled[rule.id] !== false,
-      isDefault: true
-    })),
-    ...storage.userRules.buttonClickRules
-  ];
+  const allCloseRules = tabCloseRules;
+  const allClickRules = buttonClickRules;
 
   // Check if tab matches any close rules
   debugLog('DEBUG', 'Checking close rules against URL:', tab.url);

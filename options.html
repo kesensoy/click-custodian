@@ -92,7 +92,7 @@
       <div class="page-head">
         <div>
           <h1 class="page-title">Tab Auto-Close <em>Rules</em></h1>
-          <p class="page-desc">When a tab's URL matches one of these patterns, Click Custodian shows a countdown overlay and quietly closes the tab. Built-in rules ship with the extension and auto-update; your own rules stay put.</p>
+          <p class="page-desc">When a tab's URL matches one of these patterns, Click Custodian shows a countdown overlay and closes the tab. Rules sync across your browsers — use Import and Export to share or back them up.</p>
         </div>
       </div>
 
@@ -104,20 +104,7 @@
         </label>
         <div class="toolbar-spacer"></div>
         <button class="btn" id="add-close-rule"><svg class="ic"><use href="#i-plus"/></svg>New rule <kbd style="margin-left:2px">N</kbd></button>
-      </div>
-
-      <div class="section-head" id="close-default-head">
-        <h2>Built-in</h2>
-        <span class="count" id="close-default-count">0 rules</span>
-        <span class="note">Maintained by Click Custodian · updated with the extension</span>
-      </div>
-
-      <div class="rule-table" id="close-default-list"></div>
-
-      <div class="section-head">
-        <h2>Your rules</h2>
-        <span class="count" id="close-user-count">0 rules</span>
-        <span class="note">Yours to shape — synced, editable, deletable.</span>
+        <span class="count hidden-count" id="close-user-count" style="display:none">0 rules</span>
       </div>
 
       <div class="rule-table" id="close-user-list"></div>
@@ -142,20 +129,7 @@
         </label>
         <div class="toolbar-spacer"></div>
         <button class="btn" id="add-click-rule"><svg class="ic"><use href="#i-plus"/></svg>New rule <kbd style="margin-left:2px">N</kbd></button>
-      </div>
-
-      <div class="section-head" id="click-default-head">
-        <h2>Built-in</h2>
-        <span class="count" id="click-default-count">0 rules</span>
-        <span class="note">None ship by default — you're the expert on your own forms.</span>
-      </div>
-
-      <div class="rule-table" id="click-default-list"></div>
-
-      <div class="section-head">
-        <h2>Your rules</h2>
-        <span class="count" id="click-user-count">0 rules</span>
-        <span class="note">Yours to shape — synced, editable, deletable.</span>
+        <span class="count hidden-count" id="click-user-count" style="display:none">0 rules</span>
       </div>
 
       <div class="rule-table" id="click-user-list"></div>
@@ -170,7 +144,7 @@
     <span class="divider-vert"></span>
     <button class="btn ghost" id="import-config"><svg class="ic"><use href="#i-upload"/></svg>Import</button>
     <button class="btn ghost" id="export-config"><svg class="ic"><use href="#i-download"/></svg>Export</button>
-    <button class="btn ghost" id="reset-config"><svg class="ic"><use href="#i-reset"/></svg>Reset defaults</button>
+    <button class="btn ghost" id="reset-config"><svg class="ic"><use href="#i-reset"/></svg>Reset to examples</button>
     <span class="divider-vert"></span>
     <button class="btn primary" id="save-config"><svg class="ic"><use href="#i-check"/></svg>Save changes</button>
     <span class="divider-vert"></span>
@@ -198,6 +172,24 @@
       <div class="shortcut-row"><span class="keys"><kbd>/</kbd></span><span class="desc">Focus the rule filter</span></div>
       <div class="shortcut-row"><span class="keys"><kbd>⌘</kbd><span class="plus-sep">+</span><kbd>S</kbd></span><span class="desc">Save changes</span></div>
       <div class="shortcut-row"><span class="keys"><kbd>Esc</kbd></span><span class="desc">Close overlay · cancel inline edit</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="import-overlay" role="dialog" aria-modal="true" aria-label="Import rules">
+  <div class="overlay-card">
+    <header>
+      <h3>Import rules</h3>
+      <button class="close" id="import-overlay-close">esc</button>
+    </header>
+    <div class="import-body">
+      <p class="import-summary" id="import-summary"></p>
+      <p class="import-current" id="import-current"></p>
+      <div class="import-actions">
+        <button class="btn" id="import-merge">Merge</button>
+        <button class="btn" id="import-replace">Replace all my rules</button>
+        <button class="btn ghost" id="import-cancel">Cancel</button>
+      </div>
     </div>
   </div>
 </div>

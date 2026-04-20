@@ -11,49 +11,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Test on current tab
   document.getElementById('test-current-tab').addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const storage = await chrome.storage.sync.get(['defaultRules', 'userRules', 'defaultRulesEnabled']);
-
-    if (!storage.defaultRules || !storage.userRules) {
-      setStatus('No configuration found', 'error');
-      return;
-    }
-
-    // Combine default rules (with enabled state) and user rules
-    const allCloseRules = [
-      ...storage.defaultRules.tabCloseRules.map(rule => ({
-        ...rule,
-        enabled: storage.defaultRulesEnabled[rule.id] !== false,
-        isDefault: true
-      })),
-      ...storage.userRules.tabCloseRules
-    ];
-
-    const allClickRules = [
-      ...storage.defaultRules.buttonClickRules.map(rule => ({
-        ...rule,
-        enabled: storage.defaultRulesEnabled[rule.id] !== false,
-        isDefault: true
-      })),
-      ...storage.userRules.buttonClickRules
-    ];
+    const { tabCloseRules = [], buttonClickRules = [] } = await chrome.storage.sync.get(['tabCloseRules', 'buttonClickRules']);
 
     // Check if tab matches any rules (enabled or disabled)
-    const closeRuleMatch = allCloseRules.find(rule =>
+    const closeRuleMatch = tabCloseRules.find(rule =>
       matchesPattern(tab.url, rule.urlPattern, rule.matchType)
     );
 
-    const clickRuleMatch = allClickRules.find(rule =>
+    const clickRuleMatch = buttonClickRules.find(rule =>
       matchesPattern(tab.url, rule.urlPattern, rule.matchType)
     );
 
     if (closeRuleMatch) {
-      if (closeRuleMatch.enabled) {
+      const enabled = closeRuleMatch.enabled !== false;
+      if (enabled) {
         setStatus(`Matches close rule: ${closeRuleMatch.name}`, 'success');
       } else {
         setStatus(`Matches close rule: ${closeRuleMatch.name} (DISABLED)`, 'warning');
       }
     } else if (clickRuleMatch) {
-      if (clickRuleMatch.enabled) {
+      const enabled = clickRuleMatch.enabled !== false;
+      if (enabled) {
         setStatus(`Matches click rule: ${clickRuleMatch.name}`, 'success');
       } else {
         setStatus(`Matches click rule: ${clickRuleMatch.name} (DISABLED)`, 'warning');
@@ -65,36 +43,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function loadStats() {
-  const storage = await chrome.storage.sync.get(['defaultRules', 'userRules', 'defaultRulesEnabled']);
+  const { tabCloseRules = [], buttonClickRules = [] } = await chrome.storage.sync.get(['tabCloseRules', 'buttonClickRules']);
 
-  if (!storage.defaultRules || !storage.userRules) {
-    setStatus('No configuration found', 'error');
-    return;
-  }
-
-  // Combine default rules (with enabled state) and user rules
-  const allCloseRules = [
-    ...storage.defaultRules.tabCloseRules.map(rule => ({
-      ...rule,
-      enabled: storage.defaultRulesEnabled[rule.id] !== false,
-      isDefault: true
-    })),
-    ...storage.userRules.tabCloseRules
-  ];
-
-  const allClickRules = [
-    ...storage.defaultRules.buttonClickRules.map(rule => ({
-      ...rule,
-      enabled: storage.defaultRulesEnabled[rule.id] !== false,
-      isDefault: true
-    })),
-    ...storage.userRules.buttonClickRules
-  ];
-
-  const closeRulesCount = allCloseRules.length;
-  const clickRulesCount = allClickRules.length;
-  const activeRulesCount = allCloseRules.filter(r => r.enabled).length +
-                          allClickRules.filter(r => r.enabled).length;
+  const closeRulesCount = tabCloseRules.length;
+  const clickRulesCount = buttonClickRules.length;
+  const activeRulesCount = tabCloseRules.filter(r => r.enabled !== false).length +
+                          buttonClickRules.filter(r => r.enabled !== false).length;
 
   document.getElementById('close-rules-count').textContent = closeRulesCount;
   document.getElementById('click-rules-count').textContent = clickRulesCount;
