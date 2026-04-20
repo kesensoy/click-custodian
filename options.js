@@ -249,6 +249,15 @@ function attachGlobalListeners() {
     if (e.target.id === 'overlay') closeOverlay();
   });
 
+  // Import overlay
+  document.getElementById('import-overlay-close').addEventListener('click', closeImportDialog);
+  document.getElementById('import-cancel').addEventListener('click', closeImportDialog);
+  document.getElementById('import-merge').addEventListener('click', () => commitImport('merge'));
+  document.getElementById('import-replace').addEventListener('click', () => commitImport('replace'));
+  document.getElementById('import-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'import-overlay') closeImportDialog();
+  });
+
   // Rule table event delegation (shared across both tabs)
   const content = document.getElementById('content');
   content.addEventListener('click', handleTableClick);
@@ -485,9 +494,43 @@ async function importConfig(e) {
   e.target.value = '';
 }
 
-function openImportDialog(imported) { /* stub — filled in Task 9 */ }
-function closeImportDialog() { pendingImport = null; }
-function commitImport(mode) { /* stub — filled in Task 9 */ }
+function openImportDialog(imported) {
+  document.getElementById('import-summary').textContent =
+    `Found ${imported.tabCloseRules.length} tab-close rule${imported.tabCloseRules.length === 1 ? '' : 's'} and ${imported.buttonClickRules.length} button-click rule${imported.buttonClickRules.length === 1 ? '' : 's'} in the file.`;
+  document.getElementById('import-current').textContent =
+    `You currently have:\n  · ${rules.tabCloseRules.length} tab-close rule${rules.tabCloseRules.length === 1 ? '' : 's'}\n  · ${rules.buttonClickRules.length} button-click rule${rules.buttonClickRules.length === 1 ? '' : 's'}`;
+  const total = imported.tabCloseRules.length + imported.buttonClickRules.length;
+  document.getElementById('import-merge').textContent = `Merge — add ${total} rule${total === 1 ? '' : 's'}`;
+  document.getElementById('import-overlay').classList.add('open');
+}
+
+function closeImportDialog() {
+  document.getElementById('import-overlay').classList.remove('open');
+  pendingImport = null;
+}
+
+function commitImport(mode) {
+  if (!pendingImport) return;
+  if (mode === 'merge') {
+    const reIded = {
+      tabCloseRules: pendingImport.tabCloseRules.map(r => ({ ...r, id: generateId() })),
+      buttonClickRules: pendingImport.buttonClickRules.map(r => ({ ...r, id: generateId() }))
+    };
+    rules.tabCloseRules.push(...reIded.tabCloseRules);
+    rules.buttonClickRules.push(...reIded.buttonClickRules);
+  } else if (mode === 'replace') {
+    const existingTotal = rules.tabCloseRules.length + rules.buttonClickRules.length;
+    if (existingTotal > 0) {
+      if (!confirm(`This deletes your ${existingTotal} existing rule${existingTotal === 1 ? '' : 's'}. Continue?`)) return;
+    }
+    rules.tabCloseRules = pendingImport.tabCloseRules;
+    rules.buttonClickRules = pendingImport.buttonClickRules;
+  }
+  markDirty();
+  renderAll();
+  closeImportDialog();
+  showStatus(`Rules ${mode === 'merge' ? 'merged' : 'replaced'} — remember to save`, 'success');
+}
 
 // ---------- Overlay ----------
 function openOverlay() { document.getElementById('overlay').classList.add('open'); }
@@ -510,6 +553,7 @@ function handleGlobalKeydown(e) {
 
   if (e.key === 'Escape') {
     if (document.getElementById('overlay').classList.contains('open')) closeOverlay();
+    else if (document.getElementById('import-overlay').classList.contains('open')) closeImportDialog();
     else if (typing && e.target.blur) e.target.blur();
     return;
   }
