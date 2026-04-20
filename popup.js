@@ -140,12 +140,24 @@ function setStatus(message, type) {
 
 async function syncTheme() {
   try {
-    const { theme } = await chrome.storage.sync.get('theme');
-    if (!theme) return;
-    const current = document.documentElement.getAttribute('data-theme');
-    if (theme !== current) {
-      document.documentElement.setAttribute('data-theme', theme);
-      try { localStorage.setItem('cc-theme', theme); } catch (e) {}
+    const { theme, palette } = await chrome.storage.sync.get(['theme', 'palette']);
+    if (theme) {
+      const current = document.documentElement.getAttribute('data-theme');
+      if (theme !== current) {
+        document.documentElement.setAttribute('data-theme', theme);
+        try { localStorage.setItem('cc-theme', theme); } catch (e) {}
+      }
+    }
+    const valid = ['navy', 'moss', 'graphite', 'ocean'];
+    const resolvedPalette = valid.includes(palette) ? palette : 'navy';
+    const currentPalette = document.documentElement.getAttribute('data-palette') || 'navy';
+    if (resolvedPalette !== currentPalette) {
+      if (resolvedPalette === 'navy') {
+        document.documentElement.removeAttribute('data-palette');
+      } else {
+        document.documentElement.setAttribute('data-palette', resolvedPalette);
+      }
+      try { localStorage.setItem('cc-palette', resolvedPalette); } catch (e) {}
     }
   } catch (e) { /* storage unavailable — keep flash-prevention value */ }
 }

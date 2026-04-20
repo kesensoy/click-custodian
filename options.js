@@ -6,7 +6,10 @@ let rules = { tabCloseRules: [], buttonClickRules: [] };
 let hasUnsavedChanges = false;
 let currentPage = 'page-close';
 let currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+let currentPalette = document.documentElement.getAttribute('data-palette') || 'navy';
 let pendingImport = null;
+
+const VALID_PALETTES = ['navy', 'moss', 'graphite', 'ocean'];
 
 // ---------- Entry ----------
 document.addEventListener('DOMContentLoaded', async () => {
@@ -22,7 +25,7 @@ window.addEventListener('beforeunload', (e) => {
 
 // ---------- Storage ----------
 async function loadConfig() {
-  const storage = await chrome.storage.sync.get(['tabCloseRules', 'buttonClickRules', 'theme']);
+  const storage = await chrome.storage.sync.get(['tabCloseRules', 'buttonClickRules', 'theme', 'palette']);
   rules = {
     tabCloseRules: storage.tabCloseRules || [],
     buttonClickRules: storage.buttonClickRules || []
@@ -32,6 +35,29 @@ async function loadConfig() {
     document.documentElement.setAttribute('data-theme', currentTheme);
     try { localStorage.setItem('cc-theme', currentTheme); } catch (e) {}
   }
+  const storedPalette = VALID_PALETTES.includes(storage.palette) ? storage.palette : 'navy';
+  if (storedPalette !== currentPalette) {
+    currentPalette = storedPalette;
+    applyPaletteAttribute(currentPalette);
+    try { localStorage.setItem('cc-palette', currentPalette); } catch (e) {}
+  }
+  updatePalettePopoverActive();
+}
+
+function applyPaletteAttribute(palette) {
+  if (palette && palette !== 'navy') {
+    document.documentElement.setAttribute('data-palette', palette);
+  } else {
+    document.documentElement.removeAttribute('data-palette');
+  }
+}
+
+function updatePalettePopoverActive() {
+  document.querySelectorAll('.palette-popover .pop-row').forEach(row => {
+    const on = row.dataset.pal === currentPalette;
+    row.classList.toggle('active', on);
+    row.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
 }
 
 async function saveConfig() {
@@ -49,6 +75,10 @@ async function saveConfig() {
 
 async function saveTheme(theme) {
   try { await chrome.storage.sync.set({ theme }); } catch (e) {}
+}
+
+async function savePalette(palette) {
+  try { await chrome.storage.sync.set({ palette }); } catch (e) {}
 }
 
 // ---------- Helpers ----------
@@ -230,6 +260,23 @@ function attachGlobalListeners() {
       saveTheme(theme);
     });
   });
+
+  // Palette picker popover
+  const paletteTrigger = document.getElementById('palette-trigger');
+  if (paletteTrigger) {
+    paletteTrigger.addEventListener('click', (e) => {
+      const row = e.target.closest('.pop-row[data-pal]');
+      if (!row) return;
+      e.preventDefault();
+      const palette = row.dataset.pal;
+      if (!VALID_PALETTES.includes(palette)) return;
+      currentPalette = palette;
+      applyPaletteAttribute(palette);
+      try { localStorage.setItem('cc-palette', palette); } catch (err) {}
+      savePalette(palette);
+      updatePalettePopoverActive();
+    });
+  }
 
   // Action bar
   document.getElementById('save-config').addEventListener('click', saveConfig);

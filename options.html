@@ -57,7 +57,28 @@
     </div>
 
     <div class="sidebar-foot">
-      <span class="dot"></span>
+      <div class="dot-wrap" tabindex="0" aria-haspopup="menu" aria-label="Change palette" id="palette-trigger">
+        <span class="dot"></span>
+        <div class="palette-popover" role="menu" aria-label="Palette">
+          <div class="pop-head">Palette</div>
+          <button type="button" class="pop-row" data-pal="navy" role="menuitemradio" aria-checked="false">
+            <span class="sw"></span><span>Navy</span>
+            <svg class="check"><use href="#i-check"/></svg>
+          </button>
+          <button type="button" class="pop-row" data-pal="moss" role="menuitemradio" aria-checked="false">
+            <span class="sw"></span><span>Moss</span>
+            <svg class="check"><use href="#i-check"/></svg>
+          </button>
+          <button type="button" class="pop-row" data-pal="graphite" role="menuitemradio" aria-checked="false">
+            <span class="sw"></span><span>Graphite</span>
+            <svg class="check"><use href="#i-check"/></svg>
+          </button>
+          <button type="button" class="pop-row" data-pal="ocean" role="menuitemradio" aria-checked="false">
+            <span class="sw"></span><span>Ocean</span>
+            <svg class="check"><use href="#i-check"/></svg>
+          </button>
+        </div>
+      </div>
       <span class="sf-text">synced</span>
       <div class="theme-toggle" role="radiogroup" aria-label="Color theme">
         <button class="tt-btn" data-theme-set="light" role="radio" aria-label="Light theme" title="Light theme">

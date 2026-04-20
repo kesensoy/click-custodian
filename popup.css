@@ -34,6 +34,54 @@
   --text-strong:var(--ink);
 }
 
+/* ================================================================ */
+/* Palette: Moss (forest)                                           */
+/* ================================================================ */
+[data-palette="moss"] {
+  --navy:#2E4A35; --navy-700:#3A5A43; --navy-900:#1E3224;
+  --cornflower:#8FB88A; --cornflower-600:#5E9A6A; --cornflower-050:#ECF3EA;
+  --cream:#F7F4EA; --cream-200:#EFEBD9; --cream-300:#E6E0C4;
+  --ok:#6B8E4E;
+}
+[data-palette="moss"][data-theme="dark"] {
+  --navy:#0E1A13; --navy-700:#17291D; --navy-900:#060D09;
+  --cornflower:#B8D6B1; --cornflower-600:#86B381; --cornflower-050:#1B2E20;
+  --cream:#0F1510; --cream-200:#1A2319; --cream-300:#233022;
+  --ok:#9DC67A;
+}
+
+/* ================================================================ */
+/* Palette: Graphite (charcoal + brass)                             */
+/* ================================================================ */
+[data-palette="graphite"] {
+  --navy:#2A2A2E; --navy-700:#3A3A40; --navy-900:#1B1B1F;
+  --cornflower:#C9A24B; --cornflower-600:#A8842D; --cornflower-050:#F5EDD6;
+  --cream:#F8F5ED; --cream-200:#F0ECE0; --cream-300:#E4DEC9;
+  --warn:#C96B1F;
+}
+[data-palette="graphite"][data-theme="dark"] {
+  --navy:#0A0A0C; --navy-700:#1A1A1E; --navy-900:#050506;
+  --cornflower:#E8C468; --cornflower-600:#BFA050; --cornflower-050:#2A2316;
+  --cream:#0E0E10; --cream-200:#1A1A1D; --cream-300:#25252A;
+  --warn:#ED9B5B;
+}
+
+/* ================================================================ */
+/* Palette: Ocean (teal + seafoam)                                  */
+/* ================================================================ */
+[data-palette="ocean"] {
+  --navy:#0F3D3E; --navy-700:#1B5457; --navy-900:#072628;
+  --cornflower:#7BC4B8; --cornflower-600:#4F9E93; --cornflower-050:#E5F2EE;
+  --cream:#F6F3EC; --cream-200:#EDE8DC; --cream-300:#E0D8C2;
+  --ok:#5D8A3A;
+}
+[data-palette="ocean"][data-theme="dark"] {
+  --navy:#031516; --navy-700:#0B2527; --navy-900:#010A0B;
+  --cornflower:#9FD8CE; --cornflower-600:#6CB3A7; --cornflower-050:#0F2A28;
+  --cream:#08110F; --cream-200:#111F1C; --cream-300:#1B2A26;
+  --ok:#8FBB63;
+}
+
 *,*::before,*::after { box-sizing:border-box; }
 html,body { margin:0; padding:0; }
 body {
