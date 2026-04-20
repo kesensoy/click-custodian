@@ -100,26 +100,6 @@ body {
   padding-top:7px;
   margin-top:1px;
 }
-/* Active Rules is a derived stat — separate it from the raw-count group
-   with a clearly heavier rule and real breathing room so it reads as a
-   distinct summary row below the raw counts, not just another stat. */
-.stat-row:last-child {
-  border-top-color:var(--border-strong);
-  padding-top:10px;
-  margin-top:10px;
-}
-.stat-row:last-child .stat-value {
-  font-weight:600;
-}
-/* Give the summary label a different typographic key — small-caps mono
-   with wider letter-spacing echoes the options page's .nav-section style
-   and categorically separates "ACTIVE RULES" from the raw counts above. */
-.stat-row:last-child .stat-label {
-  font-family:var(--mono);
-  font-size:10px;
-  letter-spacing:.14em;
-  text-transform:uppercase;
-}
 .stat-label {
   font-family:var(--mono);
   font-size:11px;
@@ -131,6 +111,11 @@ body {
   font-size:13px;
   font-weight:500;
   color:var(--text-strong);
+}
+/* When a rule type has any disabled rules, surface that inline by tinting
+   the "enabled / total" fraction with --warn. Toggled by popup.js. */
+.stat-value.has-disabled {
+  color:var(--warn);
 }
 
 /* Actions */

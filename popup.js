@@ -46,14 +46,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadStats() {
   const { tabCloseRules = [], buttonClickRules = [] } = await chrome.storage.sync.get(['tabCloseRules', 'buttonClickRules']);
 
-  const closeRulesCount = tabCloseRules.length;
-  const clickRulesCount = buttonClickRules.length;
-  const activeRulesCount = tabCloseRules.filter(r => r.enabled !== false).length +
-                          buttonClickRules.filter(r => r.enabled !== false).length;
+  const closeTotal = tabCloseRules.length;
+  const closeEnabled = tabCloseRules.filter(r => r.enabled !== false).length;
+  const clickTotal = buttonClickRules.length;
+  const clickEnabled = buttonClickRules.filter(r => r.enabled !== false).length;
 
-  document.getElementById('close-rules-count').textContent = closeRulesCount;
-  document.getElementById('click-rules-count').textContent = clickRulesCount;
-  document.getElementById('active-rules-count').textContent = activeRulesCount;
+  renderRuleFraction('close-rules-count', closeEnabled, closeTotal);
+  renderRuleFraction('click-rules-count', clickEnabled, clickTotal);
+}
+
+// Renders an "enabled / total" fraction into a .stat-value and flags the
+// element with .has-disabled when any rule of that type is disabled, so
+// popup.css can tint it with --warn as a subtle at-a-glance signal.
+function renderRuleFraction(elementId, enabled, total) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  el.textContent = `${enabled} / ${total}`;
+  el.classList.toggle('has-disabled', enabled < total);
 }
 
 function matchesPattern(url, pattern, matchType) {
