@@ -45,8 +45,23 @@ function createTestRules({ clickRule = {}, closeRule = {}, includeClick = true, 
   return rules;
 }
 
+/**
+ * Seed the legacy two-tier storage shape (for migration tests).
+ * Produces an object that can be passed to `chrome.storage.sync.set`
+ * to simulate the pre-Task-14 storage layout.
+ */
+function createLegacyRules({ defaultRules = [], userRules = [], defaultRulesEnabled = {} } = {}) {
+  return {
+    defaultRules: { version: '1.0', tabCloseRules: defaultRules, buttonClickRules: [] },
+    userRules: { tabCloseRules: userRules, buttonClickRules: [] },
+    defaultRulesEnabled,
+    defaultsVersion: '1.0'
+  };
+}
+
 module.exports = {
   createButtonClickRule,
   createTabCloseRule,
-  createTestRules
+  createTestRules,
+  createLegacyRules
 };
