@@ -103,7 +103,7 @@ function globMatch(str, pattern) {
 // what the pulsing cornflower dot keys off of in popup.css. Passing a null/
 // falsy type to setStatus reproduces that classless default.
 const RESTING_STATUS_MESSAGE = 'Extension is running';
-const STATUS_REVERT_MS = 7000;
+const STATUS_REVERT_MS = 5000;
 let statusRevertTimer = null;
 
 function setStatus(message, type) {
