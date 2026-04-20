@@ -5,27 +5,16 @@ Chrome extension that auto-closes confirmation tabs and auto-clicks repetitive b
 
 ## Architecture
 
-### Two-Tier Rules System
-- **Default Rules**: Stored in `defaults.json`, auto-update when extension updates
-- **User Rules**: Custom rules, never touched by updates
-- Storage keeps them completely separate
+### Single-Tier Rules
+- All rules are user-owned and fully editable.
+- Fresh installs seed from `seed-examples.json` (bundled with extension); updates never touch storage.
+- Import/export provides the mechanism for sharing rule sets.
 
 ### Storage Structure
 ```javascript
 {
-  defaultRules: {              // From defaults.json
-    version: "1.0",
-    tabCloseRules: [...],
-    buttonClickRules: [...]
-  },
-  userRules: {                 // User's custom rules
-    tabCloseRules: [...],
-    buttonClickRules: [...]
-  },
-  defaultRulesEnabled: {       // Per-user enable/disable state
-    "rule-id": true/false
-  },
-  defaultsVersion: "1.0"
+  tabCloseRules: [...],
+  buttonClickRules: [...]
 }
 ```
 
@@ -33,23 +22,22 @@ Chrome extension that auto-closes confirmation tabs and auto-clicks repetitive b
 ```
 click-custodian/
 ├── manifest.json       # Chrome Extension Manifest V3
-├── defaults.json       # Default rules (edit this to add new defaults)
-├── background.js       # Service worker - monitors tabs, loads defaults
+├── seed-examples.json   # First-install seed (bundled in extension)
+├── background.js       # Service worker - monitors tabs, seeds on install
 ├── content.js         # Smart polling, button clicking
 ├── content.css        # Countdown overlay styles
-├── options.html/css/js # Two-tier settings UI
+├── options.html/css/js # Settings UI
 └── popup.html/js      # Extension popup
 ```
 
 ## Key Components
 
 ### Background Service Worker (`background.js`)
-- Loads `defaults.json` on install/update via `loadDefaultRules()`
-- Version checking: updates defaults when version changes
-- Monitors tabs: `chrome.tabs.onUpdated`
-- Combines default + user rules when matching URLs
-- Injects countdown overlay for tab close
-- Sends messages to content script for button clicks
+- On fresh install: seeds from `seed-examples.json` via `chrome.runtime.onInstalled` (`reason === 'install'`).
+- On extension update: runs one-shot legacy-shape migration if `defaultRules`/`userRules` keys exist; otherwise untouched.
+- Monitors tabs via `chrome.tabs.onUpdated`.
+- Reads flat `tabCloseRules` / `buttonClickRules` arrays when matching URLs.
+- Injects countdown overlay for tab close; sends messages to content script for button clicks.
 
 ### Content Script (`content.js`)
 **Smart Button Polling:**
@@ -64,10 +52,11 @@ Page complete → Poll for button (max 3s) → Found? → Green highlight → Wa
 ```
 
 ### Options Page (`options.js`)
-**Two-Tier Display:**
-- Default rules: Light blue background, read-only fields, toggle only, 📌 icon
-- User rules: Gray background, fully editable, delete button
-- Saves: `userRules` + `defaultRulesEnabled` to Chrome storage
+**Single Rule List:**
+- All rules render as editable rows with toggle + delete.
+- Import/Export buttons in the sticky action bar support rule-set sharing.
+- "Reset to examples" button replaces the current rules with the bundled seed.
+- Import dialog offers Replace (destructive, confirm-gated) or Merge (re-IDs imported rules).
 
 ## Rule Schema
 
@@ -95,17 +84,18 @@ Page complete → Poll for button (max 3s) → Found? → Green highlight → Wa
 }
 ```
 
-## Current Default Rules
+## Seed Example Rules
 
-**All defaults enabled by default:**
+Bundled in `seed-examples.json`, loaded once on first install:
 
 **Tab Close Rules:**
-1. AWS CLI OAuth Callback: `*://127.0.0.1:*/oauth/callback*` (glob, 3s delay)
-2. Azure App Verify: `https://login.microsoftonline.com/appverify` (exact, 3s delay)
-3. Generic Localhost OAuth Callback: `*://localhost:*/callback?code=*` (glob, 3s delay)
+1. Localhost OAuth callback: `*://localhost:*/*callback*` (glob, 3s delay)
+2. Azure AD device code approval: `https://login.microsoftonline.com/appverify` (exact, 3s delay)
 
 **Button Click Rules:**
-(none shipped by default — users add their own)
+(none shipped — users add their own)
+
+Users can delete seeded rules at any time; they are not restored on update. The "Reset to examples" button reloads the seed destructively.
 
 ## Pattern Matching
 
@@ -116,18 +106,13 @@ Page complete → Poll for button (max 3s) → Found? → Green highlight → Wa
 
 Implementation in `background.js:matchesPattern()`
 
-## Adding New Default Rules
+## Editing the Seed
 
-1. Edit `defaults.json`
-2. Add rule to appropriate array (`tabCloseRules` or `buttonClickRules`)
-3. Bump `version` field in `defaults.json`
-4. **CRITICAL:** Bump `version` field in `manifest.json` to match
-5. Extension will auto-update defaults on reload
+If you want to change what fresh installs get:
+1. Edit `seed-examples.json`.
+2. Bump `manifest.json` version so the extension reloads.
 
-**Why both versions?**
-- Chrome uses `manifest.json` version to detect extension updates
-- `defaults.json` version triggers defaults refresh in storage
-- Both must be bumped or extension won't reload properly
+The seed is not re-applied on update; only fresh installs see changes. Existing users need to click "Reset to examples" to pick up new seed content.
 
 ## Key Behaviors
 
@@ -159,13 +144,7 @@ Implementation in `background.js:matchesPattern()`
 
 ## UI Styling
 
-**Default Rules (`.rule-card-default`):**
-- Background: `#e3f2fd` (light blue)
-- Border: `#90caf9`
-- Read-only fields with monospace font
-- Only toggle switch, no edit/delete buttons
-
-**Custom Rules (`.rule-card`):**
+**Rule Card (`.rule-card`):**
 - Background: `#f8f9fa` (light gray)
 - Border: `#e9ecef`
 - Fully editable inputs
@@ -173,8 +152,8 @@ Implementation in `background.js:matchesPattern()`
 
 ## Important Notes
 
-- Default rules stored in `defaults.json` (not hardcoded in JS)
-- User rules completely separate from defaults
+- Seed example rules live in `seed-examples.json` (bundled with the extension; only applied on fresh install)
+- All rules are user-owned once installed; updates do not touch storage
 - `rule.delay` means different things:
   - Tab close: countdown duration
   - Button click: wait time AFTER finding button
@@ -202,7 +181,6 @@ Implementation in `background.js:matchesPattern()`
 
 **Version Stuck Issues:**
 - If version won't update: Bump `manifest.json` version
-- If defaults won't update: Bump `defaults.json` version
 - Chrome caches aggressively - full remove/reload may be needed
 
 ### Debugging
@@ -223,7 +201,7 @@ Implementation in `background.js:matchesPattern()`
 |-------|-------|----------|
 | Green square, no click | Old content script cached | Close and reopen test tab |
 | Wrong version showing | Chrome cache | Remove extension, reload unpacked |
-| Rules not triggering | Rule disabled or version mismatch | Check storage in service worker console |
+| Rules not triggering | Rule disabled or pattern mismatch | Check storage in service worker console |
 | Button not found | Selector or timing issue | Check content script console for polling logs |
 
 ### Testing
@@ -237,7 +215,7 @@ Implementation in `background.js:matchesPattern()`
 ```javascript
 // In service worker console:
 chrome.storage.sync.get(null, (data) => console.log(data))
-// Verify defaultRules.version matches defaults.json
+// Verify tabCloseRules / buttonClickRules arrays look correct
 ```
 
 **Content Script Injection Check:**
