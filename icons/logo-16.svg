@@ -9,8 +9,8 @@
   <!-- Rounded square background (rx=4 ≈ 25% of 16, slightly tighter than the 28% in larger sizes for pixel-crispness) -->
   <rect x="0" y="0" width="16" height="16" rx="4" ry="4" fill="url(#bg16)"/>
 
-  <!-- Cursor glyph: cranked stroke-width + tighter padding so it reads cleanly at 16px -->
-  <svg x="2" y="2" width="12" height="12" viewBox="0 0 24 24" fill="none"
+  <!-- Cursor glyph: cranked stroke-width + tighter padding so it reads cleanly at 16px (~81% fill) -->
+  <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
        stroke="#7CB9E8" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M4 4l6 16 2-7 7-2z"/>
   </svg>

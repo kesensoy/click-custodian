@@ -13,8 +13,8 @@
   <rect x="0" y="0" width="128" height="1" fill="rgba(255,255,255,0.06)"/>
   <rect x="0" y="127" width="128" height="1" fill="rgba(0,0,0,0.3)"/>
 
-  <!-- Cursor glyph (Lucide "mouse-pointer-2"), 64x64 centered, scaled from 24x24 viewBox -->
-  <svg x="32" y="32" width="64" height="64" viewBox="0 0 24 24" fill="none"
+  <!-- Cursor glyph (Lucide "mouse-pointer-2"), 90x90 centered (~70% fill), scaled from 24x24 viewBox -->
+  <svg x="19" y="19" width="90" height="90" viewBox="0 0 24 24" fill="none"
        stroke="#7CB9E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M4 4l6 16 2-7 7-2z"/>
   </svg>
