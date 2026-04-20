@@ -141,12 +141,15 @@ function setStatus(message, type) {
 async function syncTheme() {
   try {
     const { theme, palette } = await chrome.storage.sync.get(['theme', 'palette']);
-    if (theme) {
+    if (theme === 'light' || theme === 'dark' || theme === 'auto') {
+      const resolved = (theme === 'light' || theme === 'dark')
+        ? theme
+        : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
       const current = document.documentElement.getAttribute('data-theme');
-      if (theme !== current) {
-        document.documentElement.setAttribute('data-theme', theme);
-        try { localStorage.setItem('cc-theme', theme); } catch (e) {}
+      if (resolved !== current) {
+        document.documentElement.setAttribute('data-theme', resolved);
       }
+      try { localStorage.setItem('cc-theme', theme); } catch (e) {}
     }
     const valid = ['navy', 'moss', 'graphite', 'ocean'];
     const resolvedPalette = valid.includes(palette) ? palette : 'navy';

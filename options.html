@@ -29,6 +29,9 @@
     <symbol id="i-star" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5l2.6 5.2 5.8.9-4.2 4 1 5.7L12 16.6l-5.2 2.7 1-5.7-4.2-4 5.8-.9z"/></symbol>
     <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+    <symbol id="i-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-rows" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1"/><rect x="3" y="11" width="18" height="5" rx="1"/><rect x="3" y="18" width="18" height="3" rx="1"/></symbol>
+    <symbol id="i-braces" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H6a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-2"/></symbol>
   </defs>
 </svg>
 
@@ -81,10 +84,13 @@
       </div>
       <span class="sf-text">synced</span>
       <div class="theme-toggle" role="radiogroup" aria-label="Color theme">
-        <button class="tt-btn" data-theme-set="light" role="radio" aria-label="Light theme" title="Light theme">
+        <button class="tt-btn" data-theme-set="light" role="radio" aria-label="Light theme" data-tooltip="Light">
           <svg><use href="#i-sun"/></svg>
         </button>
-        <button class="tt-btn" data-theme-set="dark" role="radio" aria-label="Dark theme" title="Dark theme">
+        <button class="tt-btn" data-theme-set="auto" role="radio" aria-label="Auto theme — follow system appearance" data-tooltip="Auto">
+          <svg><use href="#i-auto"/></svg>
+        </button>
+        <button class="tt-btn" data-theme-set="dark" role="radio" aria-label="Dark theme" data-tooltip="Dark">
           <svg><use href="#i-moon"/></svg>
         </button>
       </div>
@@ -111,11 +117,27 @@
           <input placeholder="Filter rules by name, pattern, or selector…" data-search-for="page-close" />
           <kbd>/</kbd>
         </label>
+        <div class="view-toggle" role="radiogroup" aria-label="View mode" data-view-for="page-close">
+          <button class="vt-btn active" data-view-set="rows" role="radio" aria-checked="true" title="Rows view"><svg><use href="#i-rows"/></svg><span>Rows</span></button>
+          <button class="vt-btn" data-view-set="json" role="radio" aria-checked="false" title="JSON view"><svg><use href="#i-braces"/></svg><span>JSON</span></button>
+        </div>
         <div class="toolbar-spacer"></div>
         <button class="btn" id="add-close-rule"><svg class="ic"><use href="#i-plus"/></svg>New rule <kbd style="margin-left:2px">N</kbd></button>
       </div>
 
       <div class="rule-table" id="close-user-list"></div>
+      <div class="json-editor" id="close-json-editor" hidden data-kind="tabCloseRules">
+        <div class="json-editor-head">
+          <span class="json-editor-label">Editing <code>tabCloseRules</code> as JSON</span>
+          <span class="json-editor-status" data-role="status"></span>
+        </div>
+        <textarea class="json-editor-text" spellcheck="false" autocorrect="off" autocapitalize="off" data-role="textarea" aria-label="tabCloseRules JSON editor"></textarea>
+        <div class="json-editor-error" data-role="error" hidden></div>
+        <div class="json-editor-actions">
+          <button class="btn ghost" data-role="discard">Discard</button>
+          <button class="btn primary" data-role="apply"><svg class="ic"><use href="#i-check"/></svg>Apply to rules</button>
+        </div>
+      </div>
     </section>
 
     <!-- Button Auto-Click -->
@@ -135,11 +157,27 @@
           <input placeholder="Filter rules by name, pattern, or selector…" data-search-for="page-click" />
           <kbd>/</kbd>
         </label>
+        <div class="view-toggle" role="radiogroup" aria-label="View mode" data-view-for="page-click">
+          <button class="vt-btn active" data-view-set="rows" role="radio" aria-checked="true" title="Rows view"><svg><use href="#i-rows"/></svg><span>Rows</span></button>
+          <button class="vt-btn" data-view-set="json" role="radio" aria-checked="false" title="JSON view"><svg><use href="#i-braces"/></svg><span>JSON</span></button>
+        </div>
         <div class="toolbar-spacer"></div>
         <button class="btn" id="add-click-rule"><svg class="ic"><use href="#i-plus"/></svg>New rule <kbd style="margin-left:2px">N</kbd></button>
       </div>
 
       <div class="rule-table" id="click-user-list"></div>
+      <div class="json-editor" id="click-json-editor" hidden data-kind="buttonClickRules">
+        <div class="json-editor-head">
+          <span class="json-editor-label">Editing <code>buttonClickRules</code> as JSON</span>
+          <span class="json-editor-status" data-role="status"></span>
+        </div>
+        <textarea class="json-editor-text" spellcheck="false" autocorrect="off" autocapitalize="off" data-role="textarea" aria-label="buttonClickRules JSON editor"></textarea>
+        <div class="json-editor-error" data-role="error" hidden></div>
+        <div class="json-editor-actions">
+          <button class="btn ghost" data-role="discard">Discard</button>
+          <button class="btn primary" data-role="apply"><svg class="ic"><use href="#i-check"/></svg>Apply to rules</button>
+        </div>
+      </div>
     </section>
   </main>
 

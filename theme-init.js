@@ -2,11 +2,20 @@
 // Primary source is chrome.storage.sync but that's async; fall back to a
 // same-session localStorage mirror (populated on first load) so subsequent
 // opens don't flash.
+//
+// The 'theme' preference can be 'light', 'dark', or 'auto'. The applied
+// data-theme attribute is always the RESOLVED value ('light' | 'dark') so
+// stylesheets don't need to know about 'auto'.
 (function () {
   try {
-    var t = localStorage.getItem('cc-theme');
-    if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', t);
+    var pref = localStorage.getItem('cc-theme');
+    var resolved;
+    if (pref === 'light' || pref === 'dark') {
+      resolved = pref;
+    } else {
+      resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', resolved);
   } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
 
   try {

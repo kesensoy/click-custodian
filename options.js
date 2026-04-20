@@ -5,22 +5,43 @@
 let rules = { tabCloseRules: [], buttonClickRules: [] };
 let hasUnsavedChanges = false;
 let currentPage = 'page-close';
-let currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+// currentTheme holds the raw user PREFERENCE — 'light' | 'dark' | 'auto'.
+// The document's data-theme attribute is always the RESOLVED value.
+let currentTheme = (() => {
+  try {
+    const stored = localStorage.getItem('cc-theme');
+    if (stored === 'light' || stored === 'dark' || stored === 'auto') return stored;
+  } catch (e) {}
+  return document.documentElement.getAttribute('data-theme') || 'light';
+})();
 let currentPalette = document.documentElement.getAttribute('data-palette') || 'navy';
 let pendingImport = null;
 
 const VALID_PALETTES = ['navy', 'moss', 'graphite', 'ocean'];
+const VALID_THEMES = ['light', 'dark', 'auto'];
+const themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
 // ---------- Entry ----------
+const JSON_EDITOR_PAGES = {
+  'page-close': { kind: 'tabCloseRules', editorId: 'close-json-editor', listId: 'close-user-list' },
+  'page-click': { kind: 'buttonClickRules', editorId: 'click-json-editor', listId: 'click-user-list' }
+};
+const jsonView = {
+  'page-close': { mode: 'rows', dirtyInView: false, originalSerialized: '' },
+  'page-click': { mode: 'rows', dirtyInView: false, originalSerialized: '' }
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
   await loadConfig();
   renderAll();
   attachGlobalListeners();
+  attachJsonEditorListeners();
   restoreActivePage();
 });
 
 window.addEventListener('beforeunload', (e) => {
-  if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = ''; return ''; }
+  const hasJsonDirty = Object.values(jsonView).some(s => s.dirtyInView);
+  if (hasUnsavedChanges || hasJsonDirty) { e.preventDefault(); e.returnValue = ''; return ''; }
 });
 
 // ---------- Storage ----------
@@ -30,11 +51,12 @@ async function loadConfig() {
     tabCloseRules: storage.tabCloseRules || [],
     buttonClickRules: storage.buttonClickRules || []
   };
-  if (storage.theme && storage.theme !== currentTheme) {
+  if (VALID_THEMES.includes(storage.theme) && storage.theme !== currentTheme) {
     currentTheme = storage.theme;
-    document.documentElement.setAttribute('data-theme', currentTheme);
     try { localStorage.setItem('cc-theme', currentTheme); } catch (e) {}
   }
+  applyResolvedTheme();
+  updateThemeControlUI();
   const storedPalette = VALID_PALETTES.includes(storage.palette) ? storage.palette : 'navy';
   if (storedPalette !== currentPalette) {
     currentPalette = storedPalette;
@@ -50,6 +72,34 @@ function applyPaletteAttribute(palette) {
   } else {
     document.documentElement.removeAttribute('data-palette');
   }
+}
+
+function resolveTheme(pref) {
+  if (pref === 'light' || pref === 'dark') return pref;
+  return themeMediaQuery.matches ? 'dark' : 'light';
+}
+
+function applyResolvedTheme() {
+  const resolved = resolveTheme(currentTheme);
+  document.documentElement.setAttribute('data-theme', resolved);
+}
+
+function setThemePreference(pref) {
+  currentTheme = pref;
+  try { localStorage.setItem('cc-theme', pref); } catch (e) {}
+  saveTheme(pref);
+  applyResolvedTheme();
+  updateThemeControlUI();
+}
+
+function updateThemeControlUI() {
+  const ctrl = document.querySelector('.theme-toggle');
+  if (!ctrl) return;
+  ctrl.querySelectorAll('.tt-btn').forEach(b => {
+    const lit = b.dataset.themeSet === currentTheme;
+    b.classList.toggle('is-active', lit);
+    b.setAttribute('aria-checked', lit ? 'true' : 'false');
+  });
 }
 
 function updatePalettePopoverActive() {
@@ -250,15 +300,21 @@ function attachGlobalListeners() {
     n.addEventListener('click', () => activatePage(n.dataset.target));
   });
 
-  // Theme toggle
-  document.querySelectorAll('.tt-btn').forEach(btn => {
+  // Theme toggle (three-segment: light / auto / dark)
+  document.querySelectorAll('.theme-toggle [data-theme-set]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const theme = btn.dataset.themeSet;
-      document.documentElement.setAttribute('data-theme', theme);
-      currentTheme = theme;
-      try { localStorage.setItem('cc-theme', theme); } catch (e) {}
-      saveTheme(theme);
+      const pref = btn.dataset.themeSet;
+      if (!VALID_THEMES.includes(pref)) return;
+      setThemePreference(pref);
     });
+  });
+
+  // Live-update if the OS scheme flips while we're in auto mode.
+  themeMediaQuery.addEventListener('change', () => {
+    if (currentTheme === 'auto') {
+      applyResolvedTheme();
+      updateThemeControlUI();
+    }
   });
 
   // Palette picker popover
@@ -426,6 +482,7 @@ function addKindRule(kind) {
 }
 
 function addCloseRule() {
+  if (!ensureRowsMode('page-close')) return;
   const pattern = '*://example.com/*';
   rules.tabCloseRules.push({
     id: generateId(),
@@ -443,6 +500,7 @@ function addCloseRule() {
 }
 
 function addClickRule() {
+  if (!ensureRowsMode('page-click')) return;
   const pattern = '*://example.com/*';
   rules.buttonClickRules.push({
     id: generateId(),
@@ -501,6 +559,7 @@ async function resetConfig() {
     });
     markClean();
     renderAll();
+    refreshActiveJsonViews();
     showStatus('Reset to defaults', 'success');
   } catch (error) {
     showStatus('Failed to load examples: ' + error.message, 'error');
@@ -575,6 +634,7 @@ function commitImport(mode) {
   }
   markDirty();
   renderAll();
+  refreshActiveJsonViews();
   closeImportDialog();
   showStatus(`Rules ${mode === 'merge' ? 'merged' : 'replaced'} — remember to save`, 'success');
 }
@@ -632,5 +692,249 @@ function handleGlobalKeydown(e) {
     else if (k === 'b') activatePage('page-click');
     gPending = false;
     clearTimeout(gTimer);
+  }
+}
+
+// ---------- JSON editor ----------
+function attachJsonEditorListeners() {
+  document.querySelectorAll('.view-toggle[data-view-for]').forEach(wrap => {
+    const pageId = wrap.dataset.viewFor;
+    wrap.querySelectorAll('[data-view-set]').forEach(btn => {
+      btn.addEventListener('click', () => setViewMode(pageId, btn.dataset.viewSet));
+    });
+  });
+
+  Object.entries(JSON_EDITOR_PAGES).forEach(([pageId, cfg]) => {
+    const editor = document.getElementById(cfg.editorId);
+    if (!editor) return;
+    const textarea = editor.querySelector('[data-role="textarea"]');
+    const applyBtn = editor.querySelector('[data-role="apply"]');
+    const discardBtn = editor.querySelector('[data-role="discard"]');
+
+    textarea.addEventListener('input', () => {
+      const state = jsonView[pageId];
+      state.dirtyInView = textarea.value !== state.originalSerialized;
+      updateJsonStatus(editor, state.dirtyInView);
+      livePreviewJson(editor, textarea.value);
+    });
+
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const s = textarea.selectionStart, end = textarea.selectionEnd;
+        textarea.value = textarea.value.slice(0, s) + '  ' + textarea.value.slice(end);
+        textarea.selectionStart = textarea.selectionEnd = s + 2;
+        textarea.dispatchEvent(new Event('input'));
+      }
+    });
+
+    applyBtn.addEventListener('click', () => applyJson(pageId));
+    discardBtn.addEventListener('click', () => {
+      const state = jsonView[pageId];
+      if (state.dirtyInView && !confirm('Discard unapplied JSON edits?')) return;
+      resetTextareaFromRules(pageId);
+    });
+  });
+}
+
+function setViewMode(pageId, mode) {
+  const cfg = JSON_EDITOR_PAGES[pageId];
+  if (!cfg) return;
+  const state = jsonView[pageId];
+  if (state.mode === mode) return;
+
+  if (state.mode === 'json' && state.dirtyInView) {
+    if (!confirm('Discard unapplied JSON edits?')) return;
+    state.dirtyInView = false;
+  }
+
+  state.mode = mode;
+
+  const page = document.getElementById(pageId);
+  const list = document.getElementById(cfg.listId);
+  const editor = document.getElementById(cfg.editorId);
+
+  page.querySelectorAll('.view-toggle[data-view-for="' + pageId + '"] .vt-btn').forEach(btn => {
+    const on = btn.dataset.viewSet === mode;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
+
+  if (mode === 'json') {
+    list.hidden = true;
+    editor.hidden = false;
+    resetTextareaFromRules(pageId);
+  } else {
+    editor.hidden = true;
+    list.hidden = false;
+  }
+}
+
+function ensureRowsMode(pageId) {
+  const state = jsonView[pageId];
+  if (!state || state.mode === 'rows') return true;
+  if (state.dirtyInView && !confirm('Discard unapplied JSON edits?')) return false;
+  setViewMode(pageId, 'rows');
+  return true;
+}
+
+function resetTextareaFromRules(pageId) {
+  const cfg = JSON_EDITOR_PAGES[pageId];
+  const editor = document.getElementById(cfg.editorId);
+  const textarea = editor.querySelector('[data-role="textarea"]');
+  const serialized = JSON.stringify(rules[cfg.kind], null, 2);
+  textarea.value = serialized;
+  jsonView[pageId].originalSerialized = serialized;
+  jsonView[pageId].dirtyInView = false;
+  clearJsonError(editor);
+  updateJsonStatus(editor, false);
+}
+
+function refreshActiveJsonViews() {
+  Object.keys(JSON_EDITOR_PAGES).forEach(pageId => {
+    if (jsonView[pageId].mode === 'json') resetTextareaFromRules(pageId);
+  });
+}
+
+function updateJsonStatus(editor, dirty) {
+  const el = editor.querySelector('[data-role="status"]');
+  if (!el) return;
+  if (dirty) { el.textContent = 'unapplied'; el.classList.add('is-dirty'); }
+  else { el.textContent = ''; el.classList.remove('is-dirty'); }
+}
+
+function livePreviewJson(editor, text) {
+  try {
+    JSON.parse(text);
+    clearJsonError(editor);
+  } catch (err) {
+    showJsonError(editor, formatParseError(err, text));
+  }
+}
+
+function clearJsonError(editor) {
+  const err = editor.querySelector('[data-role="error"]');
+  err.hidden = true;
+  err.textContent = '';
+  editor.classList.remove('is-invalid');
+  const apply = editor.querySelector('[data-role="apply"]');
+  apply.removeAttribute('aria-disabled');
+}
+
+function showJsonError(editor, message) {
+  const err = editor.querySelector('[data-role="error"]');
+  err.textContent = message;
+  err.hidden = false;
+  editor.classList.add('is-invalid');
+  const apply = editor.querySelector('[data-role="apply"]');
+  apply.setAttribute('aria-disabled', 'true');
+}
+
+function formatParseError(err, text) {
+  const msg = err.message || String(err);
+  const posMatch = msg.match(/position\s+(\d+)/i);
+  if (posMatch) {
+    const pos = Number(posMatch[1]);
+    const before = text.slice(0, pos);
+    const line = before.split('\n').length;
+    const col = pos - (before.lastIndexOf('\n') + 1) + 1;
+    return `${msg}\n→ line ${line}, column ${col}`;
+  }
+  return msg;
+}
+
+function applyJson(pageId) {
+  const cfg = JSON_EDITOR_PAGES[pageId];
+  const editor = document.getElementById(cfg.editorId);
+  if (editor.querySelector('[data-role="apply"]').getAttribute('aria-disabled') === 'true') return;
+  const textarea = editor.querySelector('[data-role="textarea"]');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(textarea.value);
+  } catch (err) {
+    showJsonError(editor, formatParseError(err, textarea.value));
+    return;
+  }
+
+  const result = validateRuleArray(parsed, cfg.kind);
+  if (!result.ok) {
+    showJsonError(editor, result.error);
+    return;
+  }
+
+  const normalized = result.value;
+  const otherKind = cfg.kind === 'tabCloseRules' ? 'buttonClickRules' : 'tabCloseRules';
+  ensureUniqueIds(normalized, rules[otherKind]);
+  rules[cfg.kind] = normalized;
+
+  if (cfg.kind === 'tabCloseRules') renderCloseRules();
+  else renderClickRules();
+  updateNavCounts();
+
+  resetTextareaFromRules(pageId);
+  markDirty();
+  showStatus('JSON applied — remember to save', 'success');
+}
+
+function validateRuleArray(parsed, kind) {
+  if (!Array.isArray(parsed)) {
+    return { ok: false, error: 'Expected an array of rule objects at the top level.' };
+  }
+  const isClick = kind === 'buttonClickRules';
+  const required = isClick
+    ? ['id', 'name', 'urlPattern', 'matchType', 'selector', 'delay']
+    : ['id', 'name', 'urlPattern', 'matchType', 'delay'];
+  const validMatch = ['glob', 'regex', 'exact', 'contains'];
+  const normalized = [];
+  for (let i = 0; i < parsed.length; i++) {
+    const r = parsed[i];
+    if (!r || typeof r !== 'object' || Array.isArray(r)) {
+      return { ok: false, error: `Rule at index ${i}: expected object, got ${Array.isArray(r) ? 'array' : typeof r}.` };
+    }
+    for (const f of required) {
+      if (!(f in r)) {
+        return { ok: false, error: `Rule at index ${i} ("${r.name || '?'}"): missing required field "${f}".` };
+      }
+    }
+    if (typeof r.id !== 'string' || !r.id) {
+      return { ok: false, error: `Rule at index ${i}: "id" must be a non-empty string.` };
+    }
+    if (typeof r.name !== 'string') {
+      return { ok: false, error: `Rule at index ${i}: "name" must be a string.` };
+    }
+    if (typeof r.urlPattern !== 'string') {
+      return { ok: false, error: `Rule at index ${i}: "urlPattern" must be a string.` };
+    }
+    if (!validMatch.includes(r.matchType)) {
+      return { ok: false, error: `Rule at index ${i}: "matchType" must be one of ${validMatch.join(', ')} (got "${r.matchType}").` };
+    }
+    if (isClick && typeof r.selector !== 'string') {
+      return { ok: false, error: `Rule at index ${i}: "selector" must be a string.` };
+    }
+    const delay = Number(r.delay);
+    if (!Number.isFinite(delay)) {
+      return { ok: false, error: `Rule at index ${i}: "delay" must be a number.` };
+    }
+    const item = {
+      ...r,
+      delay: clampDelay(delay, 0, 60000, isClick ? 1000 : 3000),
+      enabled: r.enabled !== false
+    };
+    if (isClick && !('buttonText' in item)) item.buttonText = '';
+    normalized.push(item);
+  }
+  const seen = new Set();
+  for (const r of normalized) {
+    if (seen.has(r.id)) r.id = generateId();
+    seen.add(r.id);
+  }
+  return { ok: true, value: normalized };
+}
+
+function ensureUniqueIds(newArr, otherArr) {
+  const otherIds = new Set(otherArr.map(r => r.id));
+  for (const r of newArr) {
+    if (otherIds.has(r.id)) r.id = generateId();
   }
 }
