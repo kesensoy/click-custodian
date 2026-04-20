@@ -90,7 +90,13 @@ function globMatch(str, pattern) {
 
 function setStatus(message, type) {
   const statusEl = document.getElementById('status-text');
-  statusEl.textContent = message;
+  const msgEl = statusEl.querySelector('.status-msg');
+  if (msgEl) {
+    msgEl.textContent = message;
+  } else {
+    // Fallback in case markup changes: don't clobber a dot child if present.
+    statusEl.textContent = message;
+  }
 
   // Use theme-aware classes; see popup.css (.status.success/.error/.warning/.info)
   statusEl.classList.remove('success', 'error', 'warning', 'info');

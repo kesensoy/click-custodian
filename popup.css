@@ -78,13 +78,6 @@ body {
   color:var(--text-strong);
   line-height:1.1;
 }
-.brand-sub {
-  font-family:var(--mono);
-  font-size:10.5px;
-  color:var(--faint);
-  margin-top:2px;
-  letter-spacing:.02em;
-}
 
 /* Stats */
 .stats {
@@ -106,6 +99,16 @@ body {
   border-top:1px solid var(--rule);
   padding-top:7px;
   margin-top:1px;
+}
+/* Active Rules is a derived stat — separate it from the raw-count group
+   with a slightly stronger rule and a touch more breathing room. */
+.stat-row:last-child {
+  border-top-color:var(--border);
+  padding-top:8px;
+  margin-top:3px;
+}
+.stat-row:last-child .stat-value {
+  font-weight:600;
 }
 .stat-label {
   font-family:var(--mono);
@@ -173,16 +176,38 @@ body {
 .status {
   font-family:var(--mono);
   font-size:11px;
-  text-align:center;
   color:var(--muted);
   padding:2px 4px 0;
   letter-spacing:.01em;
   min-height:1.4em;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
 }
+.status .dot {
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--cornflower);
+  box-shadow:0 0 0 3px rgba(124,185,232,.18);
+  flex:0 0 auto;
+  animation:cc-status-pulse 2.2s ease-in-out infinite;
+}
+/* Status-type colors: text + dot both key off the parent class. */
 .status.success { color:var(--ok); }
+.status.success .dot { background:var(--ok); box-shadow:0 0 0 3px rgba(75,122,82,.18); animation:none; }
 .status.error { color:var(--rose); }
+.status.error .dot { background:var(--rose); box-shadow:0 0 0 3px rgba(196,86,59,.18); animation:none; }
 .status.warning { color:var(--warn); }
+.status.warning .dot { background:var(--warn); box-shadow:0 0 0 3px rgba(180,123,42,.20); animation:none; }
 .status.info { color:var(--muted); }
+/* info (and the default, classless state) keep the pulsing cornflower dot. */
+
+@keyframes cc-status-pulse {
+  0%, 100% { opacity:1; }
+  50% { opacity:.45; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration:.01ms !important; animation-duration:.01ms !important; }
