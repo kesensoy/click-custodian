@@ -4,38 +4,43 @@
  *   - Tokens are scoped on the overlay root (not :root) to avoid host leakage.
  *   - Selectors use high-specificity IDs to outrank most host page rules.
  *   - Font stack falls back to system sans — we don't load Google Fonts here.
- *   - Dark/light follows the host page's prefers-color-scheme (the extension's
- *     data-theme setting isn't readable from an injected overlay without
- *     extra messaging — out of scope).
+ *   - Dark-first to match the brand; light-mode variant keeps the cornflower
+ *     accent and ring but softens shadows so it still looks coherent on a
+ *     light host page.
  */
 
 #click-custodian-overlay {
-  /* --- Design tokens (light) --- */
-  --cc-navy: #1B2A4A;
-  --cc-navy-700: #243356;
-  --cc-cornflower: #7CB9E8;
-  --cc-cornflower-600: #4F9AD1;
-  --cc-cream: #F9F6F0;
-  --cc-cream-200: #F1ECE0;
-  --cc-white: #FFFFFF;
-  --cc-ink: #0F1A33;
-  --cc-ink-2: #2B3554;
-  --cc-muted: #5E6A85;
-  --cc-faint: #8D96AE;
-  --cc-border: #E6E3DA;
-  --cc-border-strong: #D4CFC2;
-  --cc-rose: #C4563B;
+  /* --- Design tokens (dark-first, matches hero mockup) --- */
+  --cc-bg-card-top: #141E3A;
+  --cc-bg-card-bot: #0F1527;
+  --cc-border: #2A3556;
+  --cc-border-strong: #3B476A;
+  --cc-cornflower: #9FCBED;
+  --cc-cornflower-600: #6FA6D8;
+  --cc-ink: #EDEFF5;
+  --cc-ink-2: #B5BDD0;
+  --cc-muted: #8D96AE;
+  --cc-faint: #646C84;
+  --cc-ring-track: #1F2947;
+  --cc-chip-bg: rgba(159, 203, 237, 0.08);
+  --cc-chip-border: rgba(159, 203, 237, 0.25);
+  --cc-kbd-bg: rgba(159, 203, 237, 0.12);
+  --cc-kbd-border: rgba(159, 203, 237, 0.28);
+  --cc-scrim: rgba(5, 10, 23, 0.72);
+  --cc-card-shadow:
+    0 24px 60px -12px rgba(0, 0, 0, 0.7),
+    0 0 0 6px rgba(159, 203, 237, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --cc-btn-bg: rgba(159, 203, 237, 0.10);
+  --cc-btn-bg-hover: rgba(159, 203, 237, 0.18);
+  --cc-btn-fg: #9FCBED;
+  --cc-btn-border: rgba(159, 203, 237, 0.35);
+  --cc-btn-focus: rgba(159, 203, 237, 0.35);
   --cc-radius: 14px;
   --cc-radius-sm: 8px;
   --cc-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-  --cc-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, sans-serif;
-  --cc-serif: Georgia, 'Times New Roman', serif;
-  --cc-shadow-pop: 0 20px 50px -20px rgba(15, 23, 42, .35), 0 2px 6px rgba(15, 23, 42, .08);
-  --cc-scrim: rgba(15, 19, 32, .48);
-  --cc-btn-primary-bg: var(--cc-navy);
-  --cc-btn-primary-bg-hover: var(--cc-navy-700);
-  --cc-btn-primary-fg: #fff;
-  --cc-btn-primary-shadow: 0 4px 12px rgba(27, 42, 74, .18);
+  --cc-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, sans-serif;
+  --cc-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
 
   /* --- Scrim / positioning --- */
   position: fixed !important;
@@ -57,8 +62,8 @@
   -webkit-font-smoothing: antialiased !important;
   text-rendering: optimizeLegibility !important;
   animation: click-custodian-fade-in .18s ease-out !important;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   /* Isolate from host layout quirks */
   margin: 0 !important;
   padding: 0 !important;
@@ -78,83 +83,131 @@
 
 /* --- Card --- */
 #click-custodian-overlay .click-custodian-countdown {
-  background: var(--cc-cream) !important;
-  border: 1px solid var(--cc-border-strong) !important;
+  background: linear-gradient(180deg, var(--cc-bg-card-top) 0%, var(--cc-bg-card-bot) 100%) !important;
+  border: 1px solid var(--cc-border) !important;
   border-radius: var(--cc-radius) !important;
-  padding: 26px 32px 22px !important;
-  box-shadow: var(--cc-shadow-pop) !important;
-  text-align: center !important;
-  max-width: 440px !important;
-  width: min(440px, 92vw) !important;
+  padding: 22px 26px !important;
+  box-shadow: var(--cc-card-shadow) !important;
+  text-align: left !important;
+  max-width: 460px !important;
+  width: min(460px, 92vw) !important;
   box-sizing: border-box !important;
   animation: click-custodian-slide-up .22s ease-out !important;
   font-family: var(--cc-sans) !important;
   color: var(--cc-ink) !important;
   display: flex !important;
-  flex-direction: column !important;
+  flex-direction: row !important;
   align-items: center !important;
-  gap: 18px !important;
+  gap: 22px !important;
   position: relative !important;
   overflow: hidden !important;
 }
 
-/* Subtle top accent rule, echoing the app's cornflower highlight */
-#click-custodian-overlay .click-custodian-countdown::before {
-  content: "" !important;
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  height: 2px !important;
-  background: linear-gradient(90deg, transparent 0%, var(--cc-cornflower) 50%, transparent 100%) !important;
-  opacity: .7 !important;
+/* --- Countdown ring (left) --- */
+#click-custodian-overlay .click-custodian-ring {
+  position: relative !important;
+  width: 72px !important;
+  height: 72px !important;
+  flex-shrink: 0 !important;
+  display: block !important;
 }
 
-/* --- Message --- */
+#click-custodian-overlay .click-custodian-ring svg {
+  width: 72px !important;
+  height: 72px !important;
+  transform: rotate(-90deg) !important;
+  display: block !important;
+}
+
+#click-custodian-overlay .click-custodian-ring-track {
+  stroke: var(--cc-ring-track) !important;
+  fill: none !important;
+}
+
+#click-custodian-overlay .click-custodian-ring-progress {
+  stroke: var(--cc-cornflower) !important;
+  stroke-linecap: round !important;
+  fill: none !important;
+  filter: drop-shadow(0 0 6px rgba(159, 203, 237, 0.5)) !important;
+  transition: stroke-dashoffset .9s linear !important;
+}
+
+#click-custodian-overlay .click-custodian-ring-num {
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: var(--cc-mono) !important;
+  font-size: 28px !important;
+  font-weight: 600 !important;
+  color: var(--cc-cornflower) !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1 !important;
+}
+
+/* --- Text block (right) --- */
+#click-custodian-overlay .click-custodian-text {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+  flex: 1 !important;
+}
+
+/* --- Heading --- */
 #click-custodian-overlay .click-custodian-message {
-  font-family: var(--cc-sans) !important;
-  font-size: 15px !important;
+  font-family: var(--cc-serif) !important;
   font-weight: 500 !important;
-  letter-spacing: -.003em !important;
+  font-size: 20px !important;
+  letter-spacing: -0.01em !important;
   color: var(--cc-ink) !important;
-  line-height: 1.5 !important;
+  line-height: 1.15 !important;
   margin: 0 !important;
   padding: 0 !important;
 }
 
-/* --- Countdown number --- */
-#click-custodian-overlay #click-custodian-seconds {
-  font-family: var(--cc-mono) !important;
-  font-weight: 600 !important;
-  font-size: 17px !important;
-  color: var(--cc-cornflower-600) !important;
-  display: inline-block !important;
-  min-width: 18px !important;
-  padding: 1px 8px !important;
-  margin: 0 2px !important;
-  border-radius: 6px !important;
-  background: var(--cc-cream-200) !important;
-  border: 1px solid var(--cc-border) !important;
-  line-height: 1.2 !important;
-  vertical-align: baseline !important;
+#click-custodian-overlay .click-custodian-message em {
+  font-style: italic !important;
+  color: var(--cc-cornflower) !important;
+  font-weight: 500 !important;
 }
 
-/* --- Cancel button (matches .btn.primary idiom) --- */
+/* --- Subline --- */
+#click-custodian-overlay .click-custodian-subline {
+  font-family: var(--cc-sans) !important;
+  font-size: 12.5px !important;
+  font-weight: 400 !important;
+  color: var(--cc-muted) !important;
+  margin: 0 0 6px !important;
+  padding: 0 !important;
+  line-height: 1.5 !important;
+}
+
+/* --- Action row --- */
+#click-custodian-overlay .click-custodian-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-top: 2px !important;
+}
+
+/* --- Cancel button --- */
 #click-custodian-overlay .click-custodian-button {
   all: unset;
   cursor: pointer !important;
   font-family: var(--cc-sans) !important;
-  font-size: 13px !important;
+  font-size: 12px !important;
   font-weight: 600 !important;
-  letter-spacing: .005em !important;
-  padding: 9px 16px !important;
-  border-radius: var(--cc-radius-sm) !important;
-  border: 1px solid var(--cc-btn-primary-bg) !important;
-  background: var(--cc-btn-primary-bg) !important;
-  color: var(--cc-btn-primary-fg) !important;
+  letter-spacing: 0.005em !important;
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--cc-btn-border) !important;
+  background: var(--cc-btn-bg) !important;
+  color: var(--cc-btn-fg) !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 8px !important;
   line-height: 1 !important;
   white-space: nowrap !important;
   transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, transform .12s ease !important;
@@ -165,50 +218,88 @@
 }
 
 #click-custodian-overlay .click-custodian-button:hover {
-  background: var(--cc-btn-primary-bg-hover) !important;
-  border-color: var(--cc-btn-primary-bg-hover) !important;
-  box-shadow: var(--cc-btn-primary-shadow) !important;
+  background: var(--cc-btn-bg-hover) !important;
+  border-color: var(--cc-cornflower) !important;
 }
 
 #click-custodian-overlay .click-custodian-button:focus-visible {
-  box-shadow: 0 0 0 3px rgba(124, 185, 232, .35), var(--cc-btn-primary-shadow) !important;
+  box-shadow: 0 0 0 3px var(--cc-btn-focus) !important;
 }
 
 #click-custodian-overlay .click-custodian-button:active {
   transform: translateY(1px) !important;
-  box-shadow: 0 2px 6px rgba(27, 42, 74, .18) !important;
 }
 
-/* --- Dark mode (follows host page preference) --- */
-@media (prefers-color-scheme: dark) {
+/* --- Esc keyboard chip (teaches shortcut) --- */
+#click-custodian-overlay .click-custodian-kbd {
+  font-family: var(--cc-mono) !important;
+  font-size: 10.5px !important;
+  font-weight: 500 !important;
+  color: var(--cc-ink) !important;
+  background: var(--cc-kbd-bg) !important;
+  border: 1px solid var(--cc-kbd-border) !important;
+  border-bottom-width: 2px !important;
+  padding: 3px 7px 2px !important;
+  border-radius: 4px !important;
+  line-height: 1 !important;
+  letter-spacing: 0.02em !important;
+  display: inline-block !important;
+  vertical-align: baseline !important;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.15) !important;
+}
+
+/* --- Light-mode variant (host page is light-themed) ---
+ * Not trying to match the dark hero mockup — just keeping the overlay
+ * coherent and not-broken. Keep cornflower accent, keep ring, soften shadows.
+ */
+@media (prefers-color-scheme: light) {
   #click-custodian-overlay {
-    --cc-navy: #0B1426;
-    --cc-navy-700: #182349;
-    --cc-cornflower: #9FCBED;
-    --cc-cornflower-600: #6FA6D8;
-    --cc-cream: #0F1527;
-    --cc-cream-200: #1A2341;
-    --cc-white: #1A2340;
-    --cc-ink: #EDEFF5;
-    --cc-ink-2: #B5BDD0;
-    --cc-muted: #8D96AE;
-    --cc-faint: #646C84;
-    --cc-border: #2A3556;
-    --cc-border-strong: #3B476A;
-    --cc-rose: #E38066;
-    --cc-scrim: rgba(0, 0, 0, .62);
-    --cc-shadow-pop: 0 20px 50px -20px rgba(0, 0, 0, .7), 0 2px 6px rgba(0, 0, 0, .5);
-    --cc-btn-primary-bg: var(--cc-cornflower-600);
-    --cc-btn-primary-bg-hover: var(--cc-cornflower);
-    --cc-btn-primary-fg: #0B1426;
-    --cc-btn-primary-shadow: 0 4px 12px rgba(111, 166, 216, .3);
+    /* Aligned to options.css `:root` default (navy palette, light theme):
+     *   --cornflower: #7CB9E8, --cornflower-600: #4F9AD1
+     *   --border: #E6E3DA, --border-strong: #D4CFC2
+     * The cornflower glow rgba values below use 124,185,232 = #7CB9E8.
+     */
+    --cc-bg-card-top: #FFFFFF;
+    --cc-bg-card-bot: #F9F6F0;
+    --cc-border: #E6E3DA;
+    --cc-border-strong: #D4CFC2;
+    --cc-cornflower: #7CB9E8;
+    --cc-cornflower-600: #4F9AD1;
+    --cc-ink: #0F1A33;
+    --cc-ink-2: #2B3554;
+    --cc-muted: #5E6A85;
+    --cc-faint: #8D96AE;
+    --cc-ring-track: #E6E3DA;
+    --cc-chip-bg: rgba(124, 185, 232, 0.08);
+    --cc-chip-border: rgba(124, 185, 232, 0.28);
+    --cc-kbd-bg: #F1ECE0;
+    --cc-kbd-border: #D4CFC2;
+    --cc-scrim: rgba(15, 19, 32, 0.42);
+    --cc-card-shadow:
+      0 20px 50px -20px rgba(15, 23, 42, 0.35),
+      0 2px 6px rgba(15, 23, 42, 0.08);
+    --cc-btn-bg: rgba(124, 185, 232, 0.10);
+    --cc-btn-bg-hover: rgba(124, 185, 232, 0.18);
+    --cc-btn-fg: #4F9AD1;
+    --cc-btn-border: rgba(124, 185, 232, 0.40);
+    --cc-btn-focus: rgba(124, 185, 232, 0.35);
+  }
+
+  #click-custodian-overlay .click-custodian-ring-progress {
+    filter: drop-shadow(0 0 4px rgba(124, 185, 232, 0.35)) !important;
+  }
+
+  #click-custodian-overlay .click-custodian-kbd {
+    color: var(--cc-ink) !important;
+    box-shadow: inset 0 -1px 0 rgba(15, 23, 42, 0.08) !important;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   #click-custodian-overlay,
   #click-custodian-overlay .click-custodian-countdown,
-  #click-custodian-overlay .click-custodian-button {
+  #click-custodian-overlay .click-custodian-button,
+  #click-custodian-overlay .click-custodian-ring-progress {
     animation-duration: .01ms !important;
     transition-duration: .01ms !important;
   }

@@ -332,25 +332,43 @@ function startCountdown(delay) {
   debugLog('DEBUG', 'Creating countdown overlay');
 
   // Create overlay
+  //
+  // Ring sizing: r=30, circumference = 2π·30 ≈ 188.5. We start at full
+  // circumference (whole ring visible) and decrement stroke-dashoffset each
+  // second so the arc shrinks as time runs out. The seconds number is the
+  // source of truth for the timer; the ring is a visual echo.
+  const totalSeconds = Math.ceil(delay / 1000);
+  const ringCircumference = 188.5;
   const overlay = document.createElement('div');
   overlay.id = 'click-custodian-overlay';
   overlay.innerHTML = `
     <div class="click-custodian-countdown" data-click-custodian-countdown="true">
-      <div class="click-custodian-message">
-        This tab will close in <span id="click-custodian-seconds">3</span> seconds
+      <div class="click-custodian-ring" aria-hidden="true">
+        <svg width="72" height="72" viewBox="0 0 72 72">
+          <circle class="click-custodian-ring-track" cx="36" cy="36" r="30" stroke-width="4"/>
+          <circle class="click-custodian-ring-progress" cx="36" cy="36" r="30" stroke-width="4"
+                  stroke-dasharray="${ringCircumference}" stroke-dashoffset="0"/>
+        </svg>
+        <div class="click-custodian-ring-num"><span id="click-custodian-seconds">${totalSeconds}</span></div>
       </div>
-      <button id="click-custodian-abort" class="click-custodian-button">
-        Cancel (Esc)
-      </button>
+      <div class="click-custodian-text">
+        <h3 class="click-custodian-message">Closing this <em>tab</em></h3>
+        <p class="click-custodian-subline">Click Custodian matched a rule on this URL.</p>
+        <div class="click-custodian-actions">
+          <button id="click-custodian-abort" class="click-custodian-button" type="button">Cancel</button>
+          <kbd class="click-custodian-kbd">Esc</kbd>
+        </div>
+      </div>
     </div>
   `;
 
   document.body.appendChild(overlay);
   debugLog('DEBUG', 'Countdown overlay appended to body');
 
-  let secondsLeft = Math.ceil(delay / 1000);
+  let secondsLeft = totalSeconds;
   const secondsSpan = document.getElementById('click-custodian-seconds');
   const abortButton = document.getElementById('click-custodian-abort');
+  const ringProgress = overlay.querySelector('.click-custodian-ring-progress');
 
   let aborted = false;
 
@@ -386,6 +404,13 @@ function startCountdown(delay) {
 
     secondsLeft--;
     secondsSpan.textContent = secondsLeft;
+
+    // Shrink the ring arc to match remaining time (visual only).
+    if (ringProgress && totalSeconds > 0) {
+      const consumed = totalSeconds - Math.max(secondsLeft, 0);
+      const offset = (consumed / totalSeconds) * ringCircumference;
+      ringProgress.setAttribute('stroke-dashoffset', String(offset));
+    }
 
     if (secondsLeft <= 0) {
       clearInterval(interval);
