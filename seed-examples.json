@@ -15,6 +15,14 @@
       "matchType": "exact",
       "enabled": true,
       "delay": 3000
+    },
+    {
+      "id": "seed-aws-cli-oauth-callback",
+      "name": "AWS CLI OAuth Callback",
+      "urlPattern": "*://127.0.0.1:*/oauth/callback*",
+      "matchType": "glob",
+      "enabled": true,
+      "delay": 3000
     }
   ],
   "buttonClickRules": []

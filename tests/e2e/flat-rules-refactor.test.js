@@ -147,11 +147,11 @@ test.describe('Fresh install seeding', () => {
     if (env) await env.cleanup();
   });
 
-  test('seeds two tab-close rules and zero button-click rules', async () => {
+  test('seeds three tab-close rules and zero button-click rules', async () => {
     const probe = await env.waitForProbe('install_seed', 8000);
-    expect(probe.payload).toEqual({ tabCloseCount: 2, buttonClickCount: 0 });
+    expect(probe.payload).toEqual({ tabCloseCount: 3, buttonClickCount: 0 });
 
-    // Verify options page renders the two rules
+    // Verify options page renders the seeded rules
     const page = await env.context.newPage();
     await page.goto(`chrome-extension://${env.extensionId}/options.html`);
     await page.waitForSelector('#close-user-list .rule-row:not(.header):not(.add-row)', { timeout: 5000 });
@@ -162,6 +162,7 @@ test.describe('Fresh install seeding', () => {
     );
     expect(ruleNames).toContain('Localhost OAuth callback');
     expect(ruleNames).toContain('Azure AD device code approval');
+    expect(ruleNames).toContain('AWS CLI OAuth Callback');
     await page.close();
   });
 });
@@ -457,6 +458,7 @@ test.describe('Options UI — import/export/reset', () => {
     const names = storage.tabCloseRules.map(r => r.name);
     expect(names).toContain('Localhost OAuth callback');
     expect(names).toContain('Azure AD device code approval');
+    expect(names).toContain('AWS CLI OAuth Callback');
     expect(names).not.toContain('Custom');
     await page.close();
   });
