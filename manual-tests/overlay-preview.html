@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Overlay preview — theme + palette variants</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../content.css" />
+<style>
+  html, body { height: 100%; margin: 0; font-family: 'Inter', system-ui, sans-serif; }
+  body {
+    background: #e8eaf0;
+    color: #111;
+    padding: 0;
+  }
+  /* Simulated host page content behind the overlay so the scrim actually has something to scrim over. */
+  .host-page {
+    position: absolute;
+    inset: 0;
+    padding: 40px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .host-page h1 { font-family: 'Fraunces', Georgia, serif; font-weight: 500; font-size: 36px; margin: 0 0 12px; color: #2B3554; }
+  .host-page p  { font-size: 14px; color: #5E6A85; max-width: 60ch; }
+  .host-page .card {
+    margin-top: 24px;
+    padding: 20px 24px;
+    background: #fff;
+    border: 1px solid #e6e3da;
+    border-radius: 10px;
+    width: 340px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 10px rgba(0,0,0,.04);
+  }
+
+  /* Dev controls (not part of the overlay) */
+  .dev-controls {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 2147483648;
+    background: #fff;
+    border: 1px solid #d4cfc2;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.1);
+    padding: 12px 14px;
+    font-size: 12.5px;
+    color: #2B3554;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  }
+  .dev-controls fieldset { border: 0; padding: 0; margin: 0; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  .dev-controls legend { font-weight: 600; margin: 0 8px 0 0; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #5E6A85; padding: 0; }
+  .dev-controls button {
+    all: unset;
+    cursor: pointer;
+    padding: 4px 10px;
+    border: 1px solid #e6e3da;
+    border-radius: 6px;
+    background: #f9f6f0;
+    font-family: inherit;
+    font-size: 11.5px;
+    color: #2B3554;
+  }
+  .dev-controls button.active { background: #1B2A4A; color: #fff; border-color: #1B2A4A; }
+  .dev-controls button:hover:not(.active) { border-color: #D4CFC2; background: #f1ece0; }
+  .dev-controls .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .dev-controls .attr-readout { font-size: 10.5px; color: #8D96AE; }
+</style>
+</head>
+<body>
+
+<!-- Simulated host page (for scrim visual) -->
+<div class="host-page">
+  <h1>Host page content</h1>
+  <p>This simulates a website that Click Custodian's countdown overlay is being shown on top of. The scrim darkens this content to draw focus to the overlay card.</p>
+  <div class="card">
+    <strong>A fake card</strong>
+    <p style="margin: 6px 0 0; font-size: 13px;">Gives the scrim something to fade against.</p>
+  </div>
+</div>
+
+<!-- The actual overlay, markup mirrored from content.js startCountdown() -->
+<div id="click-custodian-overlay" data-cc-theme="dark" data-cc-palette="navy">
+  <div class="click-custodian-countdown" data-click-custodian-countdown="true">
+    <div class="click-custodian-ring" aria-hidden="true">
+      <svg width="72" height="72" viewBox="0 0 72 72">
+        <circle class="click-custodian-ring-track" cx="36" cy="36" r="30" stroke-width="4"/>
+        <circle class="click-custodian-ring-progress" cx="36" cy="36" r="30" stroke-width="4"
+                stroke-dasharray="188.5" stroke-dashoffset="63"/>
+      </svg>
+      <div class="click-custodian-ring-num"><span id="click-custodian-seconds">2</span></div>
+    </div>
+    <div class="click-custodian-text">
+      <h3 class="click-custodian-message">Closing this <em>tab</em></h3>
+      <p class="click-custodian-subline">Click Custodian matched a rule on this URL.</p>
+      <div class="click-custodian-actions">
+        <button id="click-custodian-abort" class="click-custodian-button" type="button">Cancel</button>
+        <kbd class="click-custodian-kbd">Esc</kbd>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dev controls -->
+<div class="dev-controls">
+  <fieldset>
+    <legend>theme</legend>
+    <div class="row" id="theme-row">
+      <button data-theme="light">light</button>
+      <button data-theme="dark" class="active">dark</button>
+      <button data-theme="">(unset)</button>
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>palette</legend>
+    <div class="row" id="palette-row">
+      <button data-palette="navy" class="active">navy</button>
+      <button data-palette="moss">moss</button>
+      <button data-palette="graphite">graphite</button>
+      <button data-palette="ocean">ocean</button>
+    </div>
+  </fieldset>
+  <div class="attr-readout" id="attr-readout">data-cc-theme="dark" data-cc-palette="navy"</div>
+</div>
+
+<script>
+  const overlay = document.getElementById('click-custodian-overlay');
+  const readout = document.getElementById('attr-readout');
+
+  function updateReadout() {
+    const t = overlay.getAttribute('data-cc-theme');
+    const p = overlay.getAttribute('data-cc-palette');
+    readout.textContent =
+      (t ? `data-cc-theme="${t}"` : '(theme attr removed)') +
+      ' ' +
+      (p ? `data-cc-palette="${p}"` : '(palette attr removed)');
+  }
+
+  document.getElementById('theme-row').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-theme]');
+    if (!btn) return;
+    document.querySelectorAll('#theme-row button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const v = btn.dataset.theme;
+    if (v) overlay.setAttribute('data-cc-theme', v);
+    else overlay.removeAttribute('data-cc-theme');
+    updateReadout();
+  });
+
+  document.getElementById('palette-row').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-palette]');
+    if (!btn) return;
+    document.querySelectorAll('#palette-row button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    overlay.setAttribute('data-cc-palette', btn.dataset.palette);
+    updateReadout();
+  });
+</script>
+</body>
+</html>

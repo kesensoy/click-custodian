@@ -317,6 +317,31 @@ function waitForElement(selector, timeout = 5000) {
   return waitForElements(selector, null, timeout).then(result => result.selected);
 }
 
+// Resolve overlay theme + palette from chrome.storage.sync.
+// theme can be 'light', 'dark', 'auto' (or missing). Anything non-light/dark
+// falls back to the OS prefers-color-scheme so future 'auto' mode just works.
+async function resolveOverlayTheme() {
+  let theme = 'auto';
+  let palette = 'navy';
+  try {
+    const stored = await chrome.storage.sync.get(['theme', 'palette']);
+    if (stored.theme) theme = stored.theme;
+    if (stored.palette) palette = stored.palette;
+  } catch (e) {
+    debugLog('DEBUG', 'Failed to read theme/palette from storage:', e.message);
+  }
+  const resolvedTheme = (theme === 'light' || theme === 'dark')
+    ? theme
+    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  return { rawTheme: theme, resolvedTheme, palette };
+}
+
+function applyOverlayAttributes(overlay, { resolvedTheme, palette, rawTheme }) {
+  overlay.setAttribute('data-cc-theme', resolvedTheme);
+  overlay.setAttribute('data-cc-palette', palette);
+  overlay.dataset.ccThemeMode = rawTheme;
+}
+
 // Countdown management for tab closing
 let countdownState = null;
 
@@ -365,6 +390,27 @@ function startCountdown(delay) {
   document.body.appendChild(overlay);
   debugLog('DEBUG', 'Countdown overlay appended to body');
 
+  // Apply theme + palette from extension settings. Fire-and-forget: storage
+  // reads complete in a few ms, well before the slide-up animation settles.
+  resolveOverlayTheme().then(info => applyOverlayAttributes(overlay, info));
+
+  // Live-update if user flips theme or palette while countdown is visible.
+  const storageListener = (changes, area) => {
+    if (area !== 'sync') return;
+    if (!changes.theme && !changes.palette) return;
+    resolveOverlayTheme().then(info => applyOverlayAttributes(overlay, info));
+  };
+  chrome.storage.onChanged.addListener(storageListener);
+
+  // Live-update when OS theme changes and we're in auto mode.
+  const osQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  const osListener = () => {
+    const mode = overlay.dataset.ccThemeMode;
+    if (mode === 'light' || mode === 'dark') return;
+    overlay.setAttribute('data-cc-theme', osQuery.matches ? 'dark' : 'light');
+  };
+  osQuery.addEventListener('change', osListener);
+
   let secondsLeft = totalSeconds;
   const secondsSpan = document.getElementById('click-custodian-seconds');
   const abortButton = document.getElementById('click-custodian-abort');
@@ -380,6 +426,8 @@ function startCountdown(delay) {
     debugLog('DEBUG', 'Removing countdown overlay and cleaning up');
     overlay.remove();
     document.removeEventListener('keydown', handleEscape);
+    chrome.storage.onChanged.removeListener(storageListener);
+    osQuery.removeEventListener('change', osListener);
     chrome.runtime.sendMessage({ action: 'abortClose' });
     countdownState = null;
   };
@@ -415,6 +463,8 @@ function startCountdown(delay) {
     if (secondsLeft <= 0) {
       clearInterval(interval);
       document.removeEventListener('keydown', handleEscape);
+      chrome.storage.onChanged.removeListener(storageListener);
+      osQuery.removeEventListener('change', osListener);
       chrome.runtime.sendMessage({ action: 'closeTab' });
       countdownState = null;
     }

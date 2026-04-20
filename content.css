@@ -1,41 +1,39 @@
 /* Click Custodian — countdown overlay styles
  *
- * This overlay is injected into arbitrary host pages, so:
+ * Injected into arbitrary host pages, so:
  *   - Tokens are scoped on the overlay root (not :root) to avoid host leakage.
- *   - Selectors use high-specificity IDs to outrank most host page rules.
- *   - Font stack falls back to system sans — we don't load Google Fonts here.
- *   - Dark-first to match the brand; light-mode variant keeps the cornflower
- *     accent and ring but softens shadows so it still looks coherent on a
- *     light host page.
+ *   - Selectors use high-specificity IDs to outrank host page rules.
+ *   - System font fallbacks — we don't load Google Fonts here.
+ *
+ * Theme + palette follow the extension's settings via data-cc-theme and
+ * data-cc-palette attributes, set by content.js from chrome.storage.sync.
+ * Base tokens = dark navy (safe pre-resolve fallback). Light theme and the
+ * three alt palettes override selectively. A prefers-color-scheme fallback
+ * covers the edge case where attributes fail to land (storage error, etc.).
  */
 
+/* === BASE: dark navy (matches brand) === */
 #click-custodian-overlay {
-  /* --- Design tokens (dark-first, matches hero mockup) --- */
   --cc-bg-card-top: #141E3A;
   --cc-bg-card-bot: #0F1527;
   --cc-border: #2A3556;
   --cc-border-strong: #3B476A;
   --cc-cornflower: #9FCBED;
   --cc-cornflower-600: #6FA6D8;
+  --cc-cornflower-rgb: 159, 203, 237;
   --cc-ink: #EDEFF5;
   --cc-ink-2: #B5BDD0;
   --cc-muted: #8D96AE;
   --cc-faint: #646C84;
   --cc-ring-track: #1F2947;
-  --cc-chip-bg: rgba(159, 203, 237, 0.08);
-  --cc-chip-border: rgba(159, 203, 237, 0.25);
-  --cc-kbd-bg: rgba(159, 203, 237, 0.12);
-  --cc-kbd-border: rgba(159, 203, 237, 0.28);
   --cc-scrim: rgba(5, 10, 23, 0.72);
+  --cc-kbd-shadow: rgba(0, 0, 0, 0.15);
   --cc-card-shadow:
     0 24px 60px -12px rgba(0, 0, 0, 0.7),
-    0 0 0 6px rgba(159, 203, 237, 0.06),
+    0 0 0 6px rgba(var(--cc-cornflower-rgb), 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --cc-btn-bg: rgba(159, 203, 237, 0.10);
-  --cc-btn-bg-hover: rgba(159, 203, 237, 0.18);
-  --cc-btn-fg: #9FCBED;
-  --cc-btn-border: rgba(159, 203, 237, 0.35);
-  --cc-btn-focus: rgba(159, 203, 237, 0.35);
+  --cc-ring-glow: drop-shadow(0 0 6px rgba(var(--cc-cornflower-rgb), 0.5));
+
   --cc-radius: 14px;
   --cc-radius-sm: 8px;
   --cc-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
@@ -64,11 +62,97 @@
   animation: click-custodian-fade-in .18s ease-out !important;
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
-  /* Isolate from host layout quirks */
   margin: 0 !important;
   padding: 0 !important;
   border: 0 !important;
   pointer-events: auto !important;
+}
+
+/* === THEME: light (navy palette) === */
+#click-custodian-overlay[data-cc-theme="light"] {
+  --cc-bg-card-top: #FFFFFF;
+  --cc-bg-card-bot: #F9F6F0;
+  --cc-border: #E6E3DA;
+  --cc-border-strong: #D4CFC2;
+  --cc-cornflower: #7CB9E8;
+  --cc-cornflower-600: #4F9AD1;
+  --cc-cornflower-rgb: 124, 185, 232;
+  --cc-ink: #0F1A33;
+  --cc-ink-2: #2B3554;
+  --cc-muted: #5E6A85;
+  --cc-faint: #8D96AE;
+  --cc-ring-track: #E6E3DA;
+  --cc-scrim: rgba(15, 19, 32, 0.42);
+  --cc-kbd-shadow: rgba(15, 23, 42, 0.08);
+  --cc-card-shadow:
+    0 20px 50px -20px rgba(15, 23, 42, 0.35),
+    0 2px 6px rgba(15, 23, 42, 0.08);
+  --cc-ring-glow: drop-shadow(0 0 4px rgba(var(--cc-cornflower-rgb), 0.35));
+}
+
+/* === Prefers-color-scheme fallback — only when attrs haven't been set === */
+@media (prefers-color-scheme: light) {
+  #click-custodian-overlay:not([data-cc-theme]) {
+    --cc-bg-card-top: #FFFFFF;
+    --cc-bg-card-bot: #F9F6F0;
+    --cc-border: #E6E3DA;
+    --cc-border-strong: #D4CFC2;
+    --cc-cornflower: #7CB9E8;
+    --cc-cornflower-600: #4F9AD1;
+    --cc-cornflower-rgb: 124, 185, 232;
+    --cc-ink: #0F1A33;
+    --cc-ink-2: #2B3554;
+    --cc-muted: #5E6A85;
+    --cc-faint: #8D96AE;
+    --cc-ring-track: #E6E3DA;
+    --cc-scrim: rgba(15, 19, 32, 0.42);
+    --cc-kbd-shadow: rgba(15, 23, 42, 0.08);
+    --cc-card-shadow:
+      0 20px 50px -20px rgba(15, 23, 42, 0.35),
+      0 2px 6px rgba(15, 23, 42, 0.08);
+    --cc-ring-glow: drop-shadow(0 0 4px rgba(124, 185, 232, 0.35));
+  }
+}
+
+/* === PALETTES (accent-only overrides) === */
+
+/* Moss — dark */
+#click-custodian-overlay[data-cc-palette="moss"] {
+  --cc-cornflower: #B8D6B1;
+  --cc-cornflower-600: #86B381;
+  --cc-cornflower-rgb: 184, 214, 177;
+}
+/* Moss — light */
+#click-custodian-overlay[data-cc-palette="moss"][data-cc-theme="light"] {
+  --cc-cornflower: #8FB88A;
+  --cc-cornflower-600: #5E9A6A;
+  --cc-cornflower-rgb: 143, 184, 138;
+}
+
+/* Graphite — dark */
+#click-custodian-overlay[data-cc-palette="graphite"] {
+  --cc-cornflower: #E8C468;
+  --cc-cornflower-600: #BFA050;
+  --cc-cornflower-rgb: 232, 196, 104;
+}
+/* Graphite — light */
+#click-custodian-overlay[data-cc-palette="graphite"][data-cc-theme="light"] {
+  --cc-cornflower: #C9A24B;
+  --cc-cornflower-600: #A8842D;
+  --cc-cornflower-rgb: 201, 162, 75;
+}
+
+/* Ocean — dark */
+#click-custodian-overlay[data-cc-palette="ocean"] {
+  --cc-cornflower: #9FD8CE;
+  --cc-cornflower-600: #6CB3A7;
+  --cc-cornflower-rgb: 159, 216, 206;
+}
+/* Ocean — light */
+#click-custodian-overlay[data-cc-palette="ocean"][data-cc-theme="light"] {
+  --cc-cornflower: #7BC4B8;
+  --cc-cornflower-600: #4F9E93;
+  --cc-cornflower-rgb: 123, 196, 184;
 }
 
 @keyframes click-custodian-fade-in {
@@ -128,7 +212,7 @@
   stroke: var(--cc-cornflower) !important;
   stroke-linecap: round !important;
   fill: none !important;
-  filter: drop-shadow(0 0 6px rgba(159, 203, 237, 0.5)) !important;
+  filter: var(--cc-ring-glow) !important;
   transition: stroke-dashoffset .9s linear !important;
 }
 
@@ -203,9 +287,9 @@
   letter-spacing: 0.005em !important;
   padding: 6px 12px !important;
   border-radius: 6px !important;
-  border: 1px solid var(--cc-btn-border) !important;
-  background: var(--cc-btn-bg) !important;
-  color: var(--cc-btn-fg) !important;
+  border: 1px solid rgba(var(--cc-cornflower-rgb), 0.35) !important;
+  background: rgba(var(--cc-cornflower-rgb), 0.10) !important;
+  color: var(--cc-cornflower) !important;
   display: inline-flex !important;
   align-items: center !important;
   line-height: 1 !important;
@@ -218,26 +302,26 @@
 }
 
 #click-custodian-overlay .click-custodian-button:hover {
-  background: var(--cc-btn-bg-hover) !important;
+  background: rgba(var(--cc-cornflower-rgb), 0.18) !important;
   border-color: var(--cc-cornflower) !important;
 }
 
 #click-custodian-overlay .click-custodian-button:focus-visible {
-  box-shadow: 0 0 0 3px var(--cc-btn-focus) !important;
+  box-shadow: 0 0 0 3px rgba(var(--cc-cornflower-rgb), 0.35) !important;
 }
 
 #click-custodian-overlay .click-custodian-button:active {
   transform: translateY(1px) !important;
 }
 
-/* --- Esc keyboard chip (teaches shortcut) --- */
+/* --- Esc keyboard chip --- */
 #click-custodian-overlay .click-custodian-kbd {
   font-family: var(--cc-mono) !important;
   font-size: 10.5px !important;
   font-weight: 500 !important;
   color: var(--cc-ink) !important;
-  background: var(--cc-kbd-bg) !important;
-  border: 1px solid var(--cc-kbd-border) !important;
+  background: rgba(var(--cc-cornflower-rgb), 0.12) !important;
+  border: 1px solid rgba(var(--cc-cornflower-rgb), 0.28) !important;
   border-bottom-width: 2px !important;
   padding: 3px 7px 2px !important;
   border-radius: 4px !important;
@@ -245,54 +329,7 @@
   letter-spacing: 0.02em !important;
   display: inline-block !important;
   vertical-align: baseline !important;
-  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.15) !important;
-}
-
-/* --- Light-mode variant (host page is light-themed) ---
- * Not trying to match the dark hero mockup — just keeping the overlay
- * coherent and not-broken. Keep cornflower accent, keep ring, soften shadows.
- */
-@media (prefers-color-scheme: light) {
-  #click-custodian-overlay {
-    /* Aligned to options.css `:root` default (navy palette, light theme):
-     *   --cornflower: #7CB9E8, --cornflower-600: #4F9AD1
-     *   --border: #E6E3DA, --border-strong: #D4CFC2
-     * The cornflower glow rgba values below use 124,185,232 = #7CB9E8.
-     */
-    --cc-bg-card-top: #FFFFFF;
-    --cc-bg-card-bot: #F9F6F0;
-    --cc-border: #E6E3DA;
-    --cc-border-strong: #D4CFC2;
-    --cc-cornflower: #7CB9E8;
-    --cc-cornflower-600: #4F9AD1;
-    --cc-ink: #0F1A33;
-    --cc-ink-2: #2B3554;
-    --cc-muted: #5E6A85;
-    --cc-faint: #8D96AE;
-    --cc-ring-track: #E6E3DA;
-    --cc-chip-bg: rgba(124, 185, 232, 0.08);
-    --cc-chip-border: rgba(124, 185, 232, 0.28);
-    --cc-kbd-bg: #F1ECE0;
-    --cc-kbd-border: #D4CFC2;
-    --cc-scrim: rgba(15, 19, 32, 0.42);
-    --cc-card-shadow:
-      0 20px 50px -20px rgba(15, 23, 42, 0.35),
-      0 2px 6px rgba(15, 23, 42, 0.08);
-    --cc-btn-bg: rgba(124, 185, 232, 0.10);
-    --cc-btn-bg-hover: rgba(124, 185, 232, 0.18);
-    --cc-btn-fg: #4F9AD1;
-    --cc-btn-border: rgba(124, 185, 232, 0.40);
-    --cc-btn-focus: rgba(124, 185, 232, 0.35);
-  }
-
-  #click-custodian-overlay .click-custodian-ring-progress {
-    filter: drop-shadow(0 0 4px rgba(124, 185, 232, 0.35)) !important;
-  }
-
-  #click-custodian-overlay .click-custodian-kbd {
-    color: var(--cc-ink) !important;
-    box-shadow: inset 0 -1px 0 rgba(15, 23, 42, 0.08) !important;
-  }
+  box-shadow: inset 0 -1px 0 var(--cc-kbd-shadow) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
