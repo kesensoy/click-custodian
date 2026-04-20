@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Click Custodian — hero A (interception)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 1280px; height: 640px;
+    background: #0B1426;
+    color: #EDEFF5;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  body {
+    position: relative;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  /* Ambient background — soft radial glow + faint grid */
+  body::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(900px 500px at 78% 40%, rgba(159,203,237,0.09), transparent 65%),
+      radial-gradient(700px 400px at 15% 90%, rgba(36,51,86,0.55), transparent 60%);
+    pointer-events: none;
+  }
+  body::after {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(159,203,237,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(159,203,237,0.035) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.9), transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.9), transparent 75%);
+    pointer-events: none;
+  }
+
+  .stage {
+    position: relative;
+    width: 100%; height: 100%;
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    padding: 48px;
+    box-sizing: border-box;
+    gap: 40px;
+    align-items: center;
+  }
+
+  /* LEFT — brand stack */
+  .left {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    position: relative;
+    z-index: 2;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .logo {
+    width: 52px; height: 52px;
+    flex-shrink: 0;
+    border-radius: 14px;
+    background: linear-gradient(140deg, #243356 0%, #111c37 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 18px rgba(11, 20, 38, 0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .wordmark {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: #EDEFF5;
+  }
+  .brand-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #646C84;
+    margin-top: 5px;
+  }
+
+  .headline {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 44px;
+    line-height: 1.02;
+    letter-spacing: -0.022em;
+    color: #EDEFF5;
+    margin: 0;
+  }
+  .headline em {
+    font-style: italic;
+    color: #9FCBED;
+    font-weight: 500;
+  }
+  .lede {
+    font-size: 14px;
+    line-height: 1.55;
+    color: #8D96AE;
+    max-width: 320px;
+    margin: 0;
+  }
+  .lede strong {
+    color: #B5BDD0;
+    font-weight: 500;
+  }
+
+  .meta-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 11px 5px 9px;
+    border-radius: 999px;
+    background: rgba(159, 203, 237, 0.08);
+    border: 1px solid rgba(159, 203, 237, 0.22);
+    font-size: 11px;
+    color: #B5BDD0;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.01em;
+  }
+  .chip .dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: #9FCBED;
+    box-shadow: 0 0 8px rgba(159, 203, 237, 0.8);
+  }
+  .chip.alt {
+    background: rgba(127, 182, 138, 0.08);
+    border-color: rgba(127, 182, 138, 0.25);
+  }
+  .chip.alt .dot { background: #7FB68A; box-shadow: 0 0 8px rgba(127,182,138,0.7); }
+
+  /* RIGHT — browser mock */
+  .right {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .browser {
+    width: 100%;
+    max-width: 760px;
+    border-radius: 12px;
+    background: #0F1527;
+    border: 1px solid #2A3556;
+    box-shadow:
+      0 40px 80px -30px rgba(0,0,0,0.85),
+      0 12px 32px rgba(0,0,0,0.5),
+      inset 0 1px 0 rgba(255,255,255,0.04);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .chrome-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px 0;
+    background: #080F1D;
+    border-bottom: 1px solid #1F2947;
+  }
+  .traffic {
+    display: flex; gap: 6px;
+    padding-bottom: 10px;
+  }
+  .traffic span {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: #2A3556;
+  }
+  .traffic span:nth-child(1) { background: #4a2a2a; }
+  .traffic span:nth-child(2) { background: #4a3f2a; }
+  .traffic span:nth-child(3) { background: #2a4a2e; }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    flex: 1;
+    padding-bottom: 0;
+    align-items: flex-end;
+  }
+  .tab {
+    padding: 7px 14px 8px 12px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    font-size: 11.5px;
+    color: #8D96AE;
+    background: #0A1122;
+    border: 1px solid transparent;
+    border-bottom: none;
+    display: flex; align-items: center; gap: 7px;
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tab .fav { width: 10px; height: 10px; border-radius: 2px; background: #3B476A; flex-shrink: 0; }
+  .tab.active {
+    background: #0F1527;
+    color: #EDEFF5;
+    border-color: #1F2947;
+    position: relative;
+    z-index: 2;
+  }
+  .tab.active .fav { background: #9FCBED; box-shadow: 0 0 6px rgba(159,203,237,0.6); }
+  .tab.closing {
+    background: #0A1122;
+    color: #646C84;
+    opacity: 0.55;
+  }
+  .tab.closing .x {
+    width: 10px; height: 10px;
+    color: #E38066;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; line-height: 1;
+  }
+
+  .address-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    background: #0A1122;
+    border-bottom: 1px solid #1F2947;
+  }
+  .nav-btns { display: flex; gap: 6px; color: #3B476A; }
+  .nav-btns span { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+  .url {
+    flex: 1;
+    background: #050A17;
+    border: 1px solid #1F2947;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: #B5BDD0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+  }
+  .url .lock { color: #7FB68A; font-size: 11px; }
+  .url .host { color: #EDEFF5; }
+  .url .path { color: #8D96AE; }
+
+  .viewport {
+    position: relative;
+    height: 320px;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(36,51,86,0.4), transparent 50%),
+      #0A1122;
+    overflow: hidden;
+  }
+  /* Faux page content behind the overlay */
+  .page-content {
+    padding: 28px 36px;
+    filter: blur(1.2px) brightness(0.55);
+    opacity: 0.55;
+  }
+  .page-content .ph-title {
+    width: 60%; height: 18px; border-radius: 4px;
+    background: #2A3556;
+    margin-bottom: 18px;
+  }
+  .page-content .ph-line {
+    height: 10px; border-radius: 3px;
+    background: #1F2947;
+    margin-bottom: 10px;
+  }
+  .page-content .ph-line.w90 { width: 90%; }
+  .page-content .ph-line.w70 { width: 70%; }
+  .page-content .ph-line.w80 { width: 80%; }
+  .page-content .ph-line.w50 { width: 50%; }
+
+  /* THE OVERLAY — the product, in action */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(5, 10, 23, 0.72);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .overlay-card {
+    background: linear-gradient(180deg, #141E3A 0%, #0F1527 100%);
+    border: 1px solid #2A3556;
+    border-radius: 14px;
+    padding: 22px 26px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    box-shadow:
+      0 24px 60px -12px rgba(0,0,0,0.7),
+      0 0 0 6px rgba(159,203,237,0.06),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+    min-width: 420px;
+  }
+  .counter {
+    position: relative;
+    width: 72px; height: 72px;
+    flex-shrink: 0;
+  }
+  .counter svg { transform: rotate(-90deg); }
+  .counter .track { stroke: #1F2947; }
+  .counter .progress {
+    stroke: #9FCBED;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 6px rgba(159,203,237,0.5));
+  }
+  .counter .num {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 500;
+    color: #9FCBED;
+    letter-spacing: -0.02em;
+  }
+  .overlay-text h3 {
+    margin: 0 0 4px;
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 20px;
+    letter-spacing: -0.01em;
+    color: #EDEFF5;
+    line-height: 1.15;
+  }
+  .overlay-text h3 em { font-style: italic; color: #9FCBED; }
+  .overlay-text p {
+    margin: 0 0 10px;
+    font-size: 12.5px;
+    color: #8D96AE;
+  }
+  .overlay-text .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 10px;
+    background: rgba(159,203,237,0.08);
+    border: 1px solid rgba(159,203,237,0.3);
+    border-radius: 6px;
+    font-size: 11px;
+    color: #9FCBED;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .overlay-text .btn kbd {
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(159,203,237,0.12);
+    border: 1px solid rgba(159,203,237,0.25);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10px;
+    color: #EDEFF5;
+  }
+
+  /* Callout — one annotation line */
+  .callout {
+    position: absolute;
+    left: -230px;
+    top: 130px;
+    width: 220px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: #9FCBED;
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+    text-align: right;
+  }
+  .callout::after {
+    content: '';
+    position: absolute;
+    right: -48px;
+    top: 10px;
+    width: 44px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #9FCBED);
+  }
+  .callout strong {
+    color: #EDEFF5;
+    font-weight: 500;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .callout-2 {
+    position: absolute;
+    right: -220px;
+    bottom: 80px;
+    width: 210px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: #7FB68A;
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+  }
+  .callout-2::before {
+    content: '';
+    position: absolute;
+    left: -48px;
+    top: 10px;
+    width: 44px;
+    height: 1px;
+    background: linear-gradient(-90deg, transparent, #7FB68A);
+  }
+  .callout-2 strong {
+    color: #EDEFF5;
+    font-weight: 500;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  /* browser container needs room for callouts to overflow visually — but we hide them
+     if they overflow the body. Instead, keep them inside .right with overflow visible. */
+  .right { overflow: visible; }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <!-- LEFT column -->
+    <aside class="left">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+               stroke="#9FCBED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4l6 16 2-7 7-2z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="wordmark">Click Custodian</div>
+          <div class="brand-sub">chrome extension</div>
+        </div>
+      </div>
+
+      <h1 class="headline">The tab<br>closes <em>itself.</em></h1>
+
+      <p class="lede">Every OAuth callback, every <strong>"you can close this tab"</strong>, every SSO re-auth &mdash; intercepted by a rule you wrote, gone in three seconds.</p>
+
+      <div class="meta-row">
+        <span class="chip"><span class="dot"></span>auto-close</span>
+        <span class="chip alt"><span class="dot"></span>auto-click</span>
+        <span class="chip"><span class="dot"></span>user-editable rules</span>
+      </div>
+    </aside>
+
+    <!-- RIGHT column: browser mock -->
+    <div class="right">
+      <div class="browser">
+        <div class="chrome-bar">
+          <div class="traffic"><span></span><span></span><span></span></div>
+          <div class="tabs">
+            <div class="tab"><span class="fav"></span>GitHub</div>
+            <div class="tab active"><span class="fav"></span>localhost:8080 / callback</div>
+            <div class="tab closing"><span class="fav"></span>appverify<span class="x">×</span></div>
+            <div class="tab"><span class="fav"></span>Stack Overflow</div>
+          </div>
+        </div>
+
+        <div class="address-bar">
+          <div class="nav-btns"><span>&larr;</span><span>&rarr;</span><span>&#x21bb;</span></div>
+          <div class="url">
+            <span class="lock">&#x1f512;</span>
+            <span class="host">localhost:8080</span><span class="path">/oauth/callback?code=a1b2c3&amp;state=xyz</span>
+          </div>
+        </div>
+
+        <div class="viewport">
+          <!-- Callouts (anchored to browser, overflow outward) -->
+          <div class="callout">
+            <strong>blocking overlay</strong>
+            Esc cancels. Otherwise it<br>counts down and closes.
+          </div>
+          <div class="callout-2">
+            <strong>rule matched</strong>
+            *://localhost:*/*callback*<br><span style="color:#8D96AE">glob &middot; 3000ms</span>
+          </div>
+
+          <div class="page-content">
+            <div class="ph-title"></div>
+            <div class="ph-line w90"></div>
+            <div class="ph-line w70"></div>
+            <div class="ph-line w80"></div>
+            <div class="ph-line w50"></div>
+            <div class="ph-line w70"></div>
+          </div>
+
+          <div class="overlay">
+            <div class="overlay-card">
+              <div class="counter">
+                <svg width="72" height="72" viewBox="0 0 72 72">
+                  <circle class="track" cx="36" cy="36" r="30" fill="none" stroke-width="4"/>
+                  <!-- 2π·30 ≈ 188.5 — show ~60% remaining -->
+                  <circle class="progress" cx="36" cy="36" r="30" fill="none" stroke-width="4"
+                          stroke-dasharray="188.5" stroke-dashoffset="75"/>
+                </svg>
+                <div class="num">2</div>
+              </div>
+              <div class="overlay-text">
+                <h3>Closing this <em>tab</em></h3>
+                <p>Click Custodian matched a rule on this URL.</p>
+                <span class="btn">Cancel <kbd>Esc</kbd></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

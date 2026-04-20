@@ -22,6 +22,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:all": "npm run test:unit && npm run test:e2e",
+    "screenshots": "node scripts/screenshots/capture.mjs",
     "package": "zip -r click-custodian.zip . -x '*.git*' -x '*node_modules*' -x '*.DS_Store' -x 'package.json' -x 'test-page.html'"
   },
   "devDependencies": {

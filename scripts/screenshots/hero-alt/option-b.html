@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Click Custodian — hero B (rules as protagonist)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 1280px; height: 640px;
+    background: #0B1426;
+    color: #EDEFF5;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  body {
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  /* Ambient texture: two soft corners + faint dot grid */
+  body::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(700px 450px at 8% 10%, rgba(159,203,237,0.08), transparent 60%),
+      radial-gradient(800px 500px at 100% 100%, rgba(36,51,86,0.55), transparent 60%);
+    pointer-events: none;
+  }
+  body::after {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(159,203,237,0.07) 1px, transparent 1px);
+    background-size: 24px 24px;
+    mask-image: radial-gradient(ellipse at 60% 50%, rgba(0,0,0,0.7), transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at 60% 50%, rgba(0,0,0,0.7), transparent 75%);
+    pointer-events: none;
+  }
+
+  .stage {
+    position: relative;
+    z-index: 1;
+    width: 100%; height: 100%;
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 48px;
+    padding: 56px 60px;
+    box-sizing: border-box;
+    align-items: center;
+  }
+
+  /* LEFT */
+  .left {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .logo {
+    width: 48px; height: 48px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: linear-gradient(140deg, #243356 0%, #111c37 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 18px rgba(11, 20, 38, 0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .wordmark {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .brand-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #646C84;
+    margin-top: 5px;
+  }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #9FCBED;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow::before {
+    content: '';
+    width: 22px; height: 1px;
+    background: #9FCBED;
+    opacity: 0.6;
+  }
+
+  .headline {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 46px;
+    line-height: 1.02;
+    letter-spacing: -0.022em;
+    color: #EDEFF5;
+    margin: 0;
+  }
+  .headline em {
+    font-style: italic;
+    color: #9FCBED;
+    font-weight: 500;
+  }
+
+  .lede {
+    font-size: 15px;
+    line-height: 1.55;
+    color: #8D96AE;
+    max-width: 380px;
+    margin: 0;
+  }
+  .lede code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    background: rgba(159,203,237,0.08);
+    border: 1px solid rgba(159,203,237,0.2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: #B5BDD0;
+  }
+
+  .kbd-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #646C84;
+    align-items: center;
+  }
+  .kbd-row kbd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    padding: 3px 7px;
+    background: #0F1527;
+    border: 1px solid #2A3556;
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    color: #B5BDD0;
+  }
+
+  /* RIGHT — the "rules document" */
+  .doc {
+    position: relative;
+    background: #0F1527;
+    border: 1px solid #2A3556;
+    border-radius: 14px;
+    padding: 0;
+    box-shadow:
+      0 40px 80px -30px rgba(0,0,0,0.85),
+      0 12px 28px rgba(0,0,0,0.45),
+      inset 0 1px 0 rgba(255,255,255,0.04);
+    overflow: hidden;
+    height: 510px;
+    display: flex;
+    flex-direction: column;
+  }
+  .doc-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    background: #080F1D;
+    border-bottom: 1px solid #1F2947;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #8D96AE;
+    letter-spacing: 0.03em;
+  }
+  .doc-head .dots {
+    display: flex; gap: 5px;
+  }
+  .doc-head .dots span {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #2A3556;
+  }
+  .doc-head .filename {
+    color: #B5BDD0;
+    font-weight: 500;
+  }
+  .doc-head .filename em {
+    color: #9FCBED;
+    font-style: normal;
+  }
+  .doc-head .tag {
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(127,182,138,0.1);
+    border: 1px solid rgba(127,182,138,0.3);
+    color: #7FB68A;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .doc-body {
+    padding: 22px 28px 26px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    line-height: 1.8;
+    color: #B5BDD0;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .ln {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 0;
+    padding-left: 0;
+  }
+  .ln .n {
+    color: #3B476A;
+    font-size: 11px;
+    text-align: right;
+    padding-right: 14px;
+    user-select: none;
+  }
+  .ln .t { white-space: pre; }
+
+  /* Syntax colors */
+  .k { color: #7FB68A; }        /* key */
+  .s { color: #E8C48C; }        /* string value (warm) */
+  .n { color: #9FCBED; }        /* number */
+  .c { color: #5E6A85; font-style: italic; }    /* comment */
+  .p { color: #646C84; }        /* punctuation */
+  .h { color: #EDEFF5; font-weight: 600; }     /* heading label */
+
+  /* section break */
+  .sect {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 15px;
+    color: #9FCBED;
+    letter-spacing: -0.005em;
+    line-height: 1.8;
+    padding: 10px 0 4px;
+    border-top: 1px dashed #1F2947;
+    margin-top: 8px;
+  }
+
+  /* "matched" indicator — sits on the same row as the "Tab auto-close"
+     section heading (lots of blank space to its right), so it reads as a
+     status pill for the section rather than a floating overlay that
+     covers code text below. */
+  .match-badge {
+    position: absolute;
+    right: 18px;
+    top: 26px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 11px;
+    background: linear-gradient(180deg, rgba(127,182,138,0.18), rgba(127,182,138,0.08));
+    border: 1px solid rgba(127,182,138,0.45);
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #B7DFBE;
+    letter-spacing: 0.02em;
+    box-shadow: 0 6px 20px rgba(127,182,138,0.18);
+  }
+  .match-badge .pulse {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #7FB68A;
+    box-shadow: 0 0 0 3px rgba(127,182,138,0.25), 0 0 10px rgba(127,182,138,0.9);
+  }
+  .match-badge strong {
+    color: #EDEFF5;
+    font-weight: 600;
+  }
+
+  /* highlighted active rule */
+  .active-block {
+    background:
+      linear-gradient(90deg, rgba(127,182,138,0.08), rgba(127,182,138,0) 90%);
+    margin: 0 -28px;
+    padding: 0 28px;
+    border-left: 2px solid #7FB68A;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <!-- LEFT -->
+    <aside class="left">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+               stroke="#9FCBED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4l6 16 2-7 7-2z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="wordmark">Click Custodian</div>
+          <div class="brand-sub">chrome extension</div>
+        </div>
+      </div>
+
+      <div class="eyebrow">Workflow friction, declared away</div>
+
+      <h1 class="headline">Your browser,<br>with <em>rules.</em></h1>
+
+      <p class="lede">
+        Declare the tabs you want closed and the buttons you want clicked. Click Custodian watches every page load, matches against your patterns with a <code>MutationObserver</code>, and handles the rest &mdash; with a three-second overlay you can always cancel.
+      </p>
+
+      <div class="kbd-row">
+        <kbd>N</kbd> new rule <span style="opacity:.4">&middot;</span>
+        <kbd>/</kbd> filter <span style="opacity:.4">&middot;</span>
+        <kbd>Esc</kbd> cancel countdown
+      </div>
+    </aside>
+
+    <!-- RIGHT: the rules document -->
+    <div class="doc">
+      <div class="doc-head">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <span class="filename">click-custodian / <em>rules.json</em></span>
+        <span class="tag">synced</span>
+      </div>
+      <div class="doc-body">
+
+        <div class="sect" style="border:none; padding-top:0; margin-top:0;">Tab auto-close</div>
+
+        <div class="active-block">
+          <div class="ln"><span class="n">01</span><span class="t"><span class="p">{</span> <span class="k">name</span><span class="p">:</span> <span class="s">"Localhost OAuth callback"</span><span class="p">,</span></span></div>
+          <div class="ln"><span class="n">02</span><span class="t">  <span class="k">url</span><span class="p">:</span> <span class="s">"*://localhost:*/*callback*"</span>  <span class="c">// glob</span></span></div>
+          <div class="ln"><span class="n">03</span><span class="t">  <span class="k">delay</span><span class="p">:</span> <span class="n">3000</span><span class="p">,</span> <span class="k">enabled</span><span class="p">:</span> <span class="n">true</span> <span class="p">}</span></span></div>
+        </div>
+
+        <div class="ln"><span class="n">04</span><span class="t"><span class="p">{</span> <span class="k">name</span><span class="p">:</span> <span class="s">"Azure device-code approval"</span><span class="p">,</span></span></div>
+        <div class="ln"><span class="n">05</span><span class="t">  <span class="k">url</span><span class="p">:</span> <span class="s">"login.microsoftonline.com/appverify"</span><span class="p">,</span> <span class="k">match</span><span class="p">:</span> <span class="s">"exact"</span> <span class="p">}</span></span></div>
+
+        <div class="ln"><span class="n">06</span><span class="t"><span class="p">{</span> <span class="k">name</span><span class="p">:</span> <span class="s">"AWS CLI callback"</span><span class="p">,</span> <span class="k">url</span><span class="p">:</span> <span class="s">"*://127.0.0.1:*/oauth/callback*"</span> <span class="p">}</span></span></div>
+
+        <div class="sect">Button auto-click</div>
+
+        <div class="ln"><span class="n">07</span><span class="t"><span class="p">{</span> <span class="k">name</span><span class="p">:</span> <span class="s">"Okta &mdash; continue"</span><span class="p">,</span></span></div>
+        <div class="ln"><span class="n">08</span><span class="t">  <span class="k">url</span><span class="p">:</span> <span class="s">"*.okta.com/idp/*"</span><span class="p">,</span> <span class="k">selector</span><span class="p">:</span> <span class="s">"button[type=submit]"</span><span class="p">,</span></span></div>
+        <div class="ln"><span class="n">09</span><span class="t">  <span class="k">text</span><span class="p">:</span> <span class="s">"Continue"</span><span class="p">,</span> <span class="k">delay</span><span class="p">:</span> <span class="n">200</span> <span class="p">}</span></span></div>
+
+        <div class="ln"><span class="n">10</span><span class="t"><span class="p">{</span> <span class="k">name</span><span class="p">:</span> <span class="s">"GitHub SSO re-auth"</span><span class="p">,</span></span></div>
+        <div class="ln"><span class="n">11</span><span class="t">  <span class="k">url</span><span class="p">:</span> <span class="s">"github.com/session"</span><span class="p">,</span> <span class="k">selector</span><span class="p">:</span> <span class="s">".js-sso-continue"</span> <span class="p">}</span></span></div>
+
+        <div class="match-badge">
+          <span class="pulse"></span>
+          <span><strong>matched</strong> &nbsp;localhost:8080/oauth/callback</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</body>
+</html>

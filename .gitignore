@@ -45,3 +45,6 @@ docs/superpowers/
 # Design exploration artifacts (mockups, screenshots, logo source variants)
 design-explorations/
 icons/proposed/
+
+# Screenshot capture profile (ephemeral, regenerated each run)
+.screenshot-profile/

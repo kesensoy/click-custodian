@@ -1,12 +1,10 @@
-<table>
-<tr>
-<td style="background: white; padding: 10px; border-radius: 8px;"><img src="icons/clickCustodianLogo.png" width="100"></td>
-<td>
-<h1>Click Custodian</h1>
-<p>Chrome extension that auto-closes confirmation tabs and auto-clicks repetitive buttons.</p>
-</td>
-</tr>
-</table>
+<p align="center">
+  <img src="assets/hero-alt/option-a.png" alt="Click Custodian intercepts an OAuth callback tab with a three-second countdown overlay" width="820">
+</p>
+
+# Click Custodian
+
+Chrome extension that auto-closes confirmation tabs and auto-clicks repetitive buttons.
 
 ## What It Does
 
@@ -30,7 +28,7 @@ Then in Chrome:
 2. Enable **Developer mode** (top-right toggle)
 3. Click **Load unpacked** and select the cloned folder
 
-On fresh install, the extension seeds two example tab-close rules so you can see the shape of things. Click the extension icon → **Open Settings** to edit, delete, or add your own.
+On fresh install, the extension seeds three example tab-close rules so you can see the shape of things. Click the extension icon → **Open Settings** to edit, delete, or add your own.
 
 ## Seed Examples
 
@@ -43,6 +41,10 @@ Fresh installs come with these examples pre-loaded. Edit or delete them like any
 The seed is defined in `seed-examples.json` and only runs on first install. Updates never touch your rules.
 
 ## Usage
+
+<p align="center">
+  <img src="assets/hero-alt/option-c.png" alt="Four-frame timeline: tab opens, overlay lands, tab closes, terminal resumes with aws sso login complete" width="820">
+</p>
 
 ### Tab Close Rules
 
@@ -75,7 +77,21 @@ Automatically click a button on matching pages.
 
 ## Configuration
 
+<p align="center">
+  <img src="assets/hero-alt/option-b.png" alt="Click Custodian's rules shown as a rules.json document — declarative, keyboard-driven, syncs across browsers" width="820">
+</p>
+
 All rules live in a single flat list on the Settings page. Every rule has the same card — toggle, edit, delete. There is no separate "built-in" tier; the examples you see on a fresh install are ordinary rules seeded once.
+
+<p align="center">
+  <img src="assets/settings.png" alt="Settings page showing the Tab Auto-Close rule list" width="820">
+</p>
+
+The popup gives you a one-glance summary and a shortcut into Settings:
+
+<p align="center">
+  <img src="assets/popup.png" alt="Click Custodian popup" width="260">
+</p>
 
 ### Export / Import
 
@@ -138,6 +154,13 @@ npm run test:unit       # Jest unit tests
 npm run test:e2e        # Playwright end-to-end
 npm run test:all        # Both
 ```
+
+**Screenshots (for README / store listings):**
+```bash
+npm run screenshots     # Regenerates assets/*.png
+```
+
+See [`scripts/screenshots/README.md`](scripts/screenshots/README.md) for how the pipeline works.
 
 **Debugging:**
 - Background worker: `chrome://extensions/` → click **service worker**
