@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" gradientUnits="userSpaceOnUse" x1="6" y1="-5" x2="122" y2="133">
+      <stop offset="0%" stop-color="#243356"/>
+      <stop offset="100%" stop-color="#111c37"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background with navy gradient (140deg, navy-700 -> navy-900) -->
+  <rect x="0" y="0" width="128" height="128" rx="36" ry="36" fill="url(#bg)"/>
+
+  <!-- Subtle inset bevel lines (top highlight, bottom shadow) to mimic the CSS box-shadow -->
+  <rect x="0" y="0" width="128" height="1" fill="rgba(255,255,255,0.06)"/>
+  <rect x="0" y="127" width="128" height="1" fill="rgba(0,0,0,0.3)"/>
+
+  <!-- Cursor glyph (Lucide "mouse-pointer-2"), 64x64 centered, scaled from 24x24 viewBox -->
+  <svg x="32" y="32" width="64" height="64" viewBox="0 0 24 24" fill="none"
+       stroke="#7CB9E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 4l6 16 2-7 7-2z"/>
+  </svg>
+</svg>
