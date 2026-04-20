@@ -1,6 +1,7 @@
 // Popup script
 
 document.addEventListener('DOMContentLoaded', async () => {
+  await syncTheme();
   await loadStats();
 
   // Open settings
@@ -91,13 +92,19 @@ function setStatus(message, type) {
   const statusEl = document.getElementById('status-text');
   statusEl.textContent = message;
 
-  // Color mapping: error (red), success (green), warning (orange), info (gray)
-  const colors = {
-    error: '#e74c3c',
-    success: '#2ecc71',
-    warning: '#f39c12',
-    info: '#7f8c8d'
-  };
+  // Use theme-aware classes; see popup.css (.status.success/.error/.warning/.info)
+  statusEl.classList.remove('success', 'error', 'warning', 'info');
+  statusEl.classList.add(type || 'info');
+}
 
-  statusEl.style.color = colors[type] || colors.info;
+async function syncTheme() {
+  try {
+    const { theme } = await chrome.storage.sync.get('theme');
+    if (!theme) return;
+    const current = document.documentElement.getAttribute('data-theme');
+    if (theme !== current) {
+      document.documentElement.setAttribute('data-theme', theme);
+      try { localStorage.setItem('cc-theme', theme); } catch (e) {}
+    }
+  } catch (e) { /* storage unavailable — keep flash-prevention value */ }
 }

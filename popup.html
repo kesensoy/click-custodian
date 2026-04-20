@@ -1,116 +1,73 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Click Custodian</title>
-  <style>
-    body {
-      width: 300px;
-      padding: 20px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      margin: 0;
-    }
-
-    h1 {
-      font-size: 20px;
-      margin: 0 0 16px 0;
-      color: #2c3e50;
-    }
-
-    .stats {
-      background: #f8f9fa;
-      padding: 16px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-    }
-
-    .stat-item {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
-      font-size: 14px;
-    }
-
-    .stat-item:last-child {
-      margin-bottom: 0;
-    }
-
-    .stat-label {
-      color: #7f8c8d;
-    }
-
-    .stat-value {
-      font-weight: 600;
-      color: #2c3e50;
-    }
-
-    .actions {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    button {
-      padding: 10px;
-      border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn-primary {
-      background: #3498db;
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: #2980b9;
-    }
-
-    .btn-secondary {
-      background: #ecf0f1;
-      color: #2c3e50;
-    }
-
-    .btn-secondary:hover {
-      background: #bdc3c7;
-    }
-
-    .status {
-      font-size: 12px;
-      text-align: center;
-      margin-top: 12px;
-      color: #7f8c8d;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Click Custodian</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script>
+  // Apply theme before CSS loads to avoid flash of wrong colors.
+  // Primary source is chrome.storage.sync but that's async; fall back to a
+  // same-session localStorage mirror (populated on first load) so subsequent
+  // opens don't flash.
+  (function () {
+    try {
+      var t = localStorage.getItem('cc-theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+<link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <h1>Click Custodian</h1>
+  <div class="popup">
+    <header class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l6 16 2-7 7-2z"/></svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-title">Click Custodian</div>
+        <div class="brand-sub">popup</div>
+      </div>
+    </header>
 
-  <div class="stats">
-    <div class="stat-item">
-      <span class="stat-label">Close Rules:</span>
-      <span class="stat-value" id="close-rules-count">0</span>
+    <div class="stats">
+      <div class="stat-row">
+        <span class="stat-label">close rules</span>
+        <span class="stat-value" id="close-rules-count">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">click rules</span>
+        <span class="stat-value" id="click-rules-count">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">active rules</span>
+        <span class="stat-value" id="active-rules-count">0</span>
+      </div>
     </div>
-    <div class="stat-item">
-      <span class="stat-label">Click Rules:</span>
-      <span class="stat-value" id="click-rules-count">0</span>
+
+    <div class="actions">
+      <button class="btn primary" id="open-options">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        Open Settings
+      </button>
+      <button class="btn ghost" id="test-current-tab">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 9l5 12 2-6 6-2z"/>
+          <path d="M7.2 2.2l.9 2.2M2.2 7.2l2.2.9M5 5l1.5 1.5M13 3l-.8 2.3"/>
+        </svg>
+        Test on Current Tab
+      </button>
     </div>
-    <div class="stat-item">
-      <span class="stat-label">Active Rules:</span>
-      <span class="stat-value" id="active-rules-count">0</span>
-    </div>
+
+    <div class="status" id="status-text">Extension is running</div>
   </div>
-
-  <div class="actions">
-    <button class="btn-primary" id="open-options">Open Settings</button>
-    <button class="btn-secondary" id="test-current-tab">Test on Current Tab</button>
-  </div>
-
-  <div class="status" id="status-text">Extension is running</div>
 
   <script src="popup.js"></script>
 </body>
