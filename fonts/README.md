@@ -41,6 +41,12 @@ shasum -a 256 fonts/*.woff2
 
 The output should match the SHA-256 column above.
 
+## License
+
+All three families ship under the [SIL Open Font License 1.1](./OFL.txt).
+Per OFL §2, the license + copyright notices must travel with redistributed
+copies — `OFL.txt` in this directory satisfies that requirement.
+
 ## When to update
 
 Bundle once, leave alone. Refresh only if:

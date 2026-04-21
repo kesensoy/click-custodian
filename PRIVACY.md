@@ -31,8 +31,7 @@ Click Custodian requests the following Chrome / Firefox extension permissions:
 - **`tabs`**: To detect when a tab finishes loading so URL-pattern matching can run against the new URL. The extension reads tab URLs only to compare them against your rules.
 - **`storage`**: To persist your rules and preferences as described above.
 - **`activeTab`**: Used by the "Test on Current Tab" button in the popup to check the active tab against your rules without triggering automation.
-- **`scripting`**: To inject the countdown overlay into matching tabs before they auto-close, so you can press Esc to cancel.
-- **`<all_urls>` (host permission)**: Because rules can target arbitrary domains (OAuth callbacks, SSO pages, internal tools), the extension cannot know in advance which URLs will need to be matched.
+- **`<all_urls>` (host permission)**: Because rules can target arbitrary domains (OAuth callbacks, SSO pages, internal tools), the extension cannot know in advance which URLs will need to be matched. The countdown overlay and button-click logic are injected via the static content script declared in the manifest.
 
 ## Open Source
 
