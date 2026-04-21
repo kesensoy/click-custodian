@@ -1,0 +1,30 @@
+/* Self-hosted variable fonts — bundled in fonts/ at the extension root.
+   See fonts/README.md for sources, versions, and SHA-256 hashes.
+   Loaded by popup.html and options.html only. content.css (countdown
+   overlay injected into web pages) intentionally relies on system-font
+   fallbacks — bundling for that surface would require web_accessible_
+   resources entries and inject @font-face rules into every page. */
+
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url(./fonts/inter-latin-wght-normal.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: 'Fraunces Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url(./fonts/fraunces-latin-full-normal.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url(./fonts/jetbrains-mono-latin-wght-normal.woff2) format('woff2');
+}

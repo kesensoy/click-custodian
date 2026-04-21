@@ -9,9 +9,9 @@
   --border:#E6E3DA; --border-strong:#D4CFC2; --rule:#EEEAE0;
   --ok:#4B7A52; --rose:#C4563B;
   --radius:10px; --radius-sm:6px;
-  --mono:'JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
-  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
-  --serif:'Fraunces',Georgia,serif;
+  --mono:'JetBrains Mono Variable','JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
+  --sans:'Inter Variable','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --serif:'Fraunces Variable','Fraunces',Georgia,serif;
   --shadow-row:0 1px 0 rgb(var(--navy-rgb) / .03), 0 1px 2px rgb(var(--navy-rgb) / .04);
   --shadow-row-hover:0 1px 0 rgb(var(--navy-rgb) / .04), 0 4px 10px rgb(var(--navy-rgb) / .06);
   --shadow-bar:0 1px 2px rgb(var(--navy-rgb) / .05), 0 12px 32px rgb(var(--navy-rgb) / .14);

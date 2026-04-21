@@ -17,17 +17,12 @@ A short-lived in-memory `Set` (in the background service worker) tracks recently
 
 Click Custodian does **not**:
 
-- Send your rules, preferences, or any user-generated data to any server
+- Make any outbound network requests
+- Send data to any first-party or third-party servers
 - Use analytics, telemetry, advertising, or tracking of any kind
 - Read, store, or transmit the content of pages you visit (except for the limited DOM read on `github.com/kesensoy/click-custodian` to detect star state, which never leaves your device)
 
-The extension's URL pattern matching runs entirely inside your browser. The countdown overlay and button-click logic operate on the live page DOM and produce no external signals.
-
-### Third-party requests
-
-The popup and settings pages load typography (Fraunces, Inter, JetBrains Mono) from **Google Fonts** (`fonts.googleapis.com`, `fonts.gstatic.com`). These requests are initiated by the browser when the popup or settings page is opened and may transmit your IP address and User-Agent to Google as part of standard HTTP. Google's privacy policy applies to these requests. Click Custodian itself does not log, store, or process any of this information.
-
-If you prefer no third-party requests at all, this is a known follow-up: the fonts can be self-bundled in a future release. Track or contribute at the [GitHub repository](https://github.com/kesensoy/click-custodian).
+The extension's URL pattern matching runs entirely inside your browser. The countdown overlay and button-click logic operate on the live page DOM and produce no external signals. UI typography (Fraunces, Inter, JetBrains Mono) is bundled with the extension — see `fonts/` in the source repository — so the popup and settings pages render without contacting any external font CDN.
 
 ## Permissions
 

@@ -27,9 +27,18 @@ click-custodian/
 ├── content.js           # Smart polling + button clicking + GH star detection
 ├── content.css          # Countdown overlay styles (palette-aware)
 ├── theme-init.js        # Synchronous flash-prevention for theme + palette
+├── fonts.css            # @font-face declarations for the bundled fonts
+├── fonts/               # Bundled variable woff2 + sources/hashes README
 ├── options.html/css/js  # Settings UI (rules, palette/theme picker, JSON editor)
 └── popup.html/css/js    # Extension popup (stats + actions + Star CTA)
 ```
+
+**Fonts:** The popup and settings pages load three variable woff2 files
+(`Inter`, `Fraunces`, `JetBrains Mono`) from the bundled `fonts/`
+directory via `fonts.css`. The countdown overlay (`content.css`)
+intentionally does NOT load these — it relies on system-font fallbacks
+to avoid injecting `@font-face` rules into every page the user visits.
+See `fonts/README.md` for sources, versions, hashes, and update guidance.
 
 ## Key Components
 

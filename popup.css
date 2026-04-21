@@ -13,9 +13,9 @@
      "thanks" affirmation reads consistently. Light/dark variants only. */
   --star:#D9A636;
   --radius:10px; --radius-sm:6px;
-  --mono:'JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
-  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
-  --serif:'Fraunces',Georgia,serif;
+  --mono:'JetBrains Mono Variable','JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
+  --sans:'Inter Variable','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --serif:'Fraunces Variable','Fraunces',Georgia,serif;
   --btn-primary-bg:var(--navy);
   --btn-primary-bg-hover:var(--navy-700);
   --btn-primary-fg:#fff;
