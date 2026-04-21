@@ -5,6 +5,10 @@
 
 set -e
 
+# Always run from the project root, regardless of where the script was invoked.
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$PROJECT_ROOT"
+
 echo "📦 Packaging Click Custodian..."
 
 # Check if icons exist
@@ -31,30 +35,31 @@ cd "$TEMP_DIR"
 
 rm -rf .git .gitignore .DS_Store
 rm -rf .claude .mcp.json
-rm -f package.sh package.json package-lock.json
-rm -f test-page.html
+rm -f package.json package-lock.json
 rm -f playwright.config.js jest.config.js
 rm -rf docs/ manual-tests/ tests/ e2e/ node_modules/
-# scripts/ holds the screenshot capture pipeline — its HTML files
-# still <link> to fonts.googleapis.com for the listing screenshots.
-# Strip so the published zip contains zero references to external
-# CDNs (the runtime extension uses the bundled fonts/ directory).
+# Gitignored working dirs that `cp -r .` happily copies — none of
+# these belong in a published zip. .screenshot-profile/ in particular
+# is an ephemeral Chrome user-data dir from the screenshot pipeline
+# and could contain incidental browsing state.
+rm -rf .screenshot-profile/ design-explorations/ test-results/
+# README/store-listing hero images — never loaded by the runtime.
+rm -rf assets/
+# scripts/ holds the packager + screenshot capture pipeline. The
+# screenshot HTML files still <link> to fonts.googleapis.com for the
+# listing shots — strip so the published zip contains zero references
+# to external CDNs (the runtime extension uses the bundled fonts/
+# directory). package.sh itself also lives here and is dev-only.
 rm -rf scripts/
 
-# Create ZIP
+# Create ZIP into the project root, sourced from the cleaned temp tree.
 ZIP_NAME="click-custodian-v$(grep '"version"' manifest.json | sed 's/.*: "\(.*\)".*/\1/').zip"
-cd ..
 echo "📦 Creating $ZIP_NAME..."
 
-# Go back to original directory for ZIP creation
-cd -
-zip -r "../$ZIP_NAME" . -x "*.DS_Store" -x "__MACOSX/*"
-
-# Move ZIP to original directory
-mv "../$ZIP_NAME" "$OLDPWD/"
+zip -r "$PROJECT_ROOT/$ZIP_NAME" . -x "*.DS_Store" -x "__MACOSX/*"
 
 # Clean up
-cd "$OLDPWD"
+cd "$PROJECT_ROOT"
 rm -rf "$TEMP_DIR"
 
 echo "✅ Package created: $ZIP_NAME"
