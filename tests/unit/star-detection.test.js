@@ -19,8 +19,16 @@ const STAR_FORM_SELECTOR = [
   `form[action^="https://github.com${REPO_PATH}/unstar?"]`,
 ].join(', ');
 
+function isVisiblyRendered(el) {
+  for (let node = el; node && node !== document; node = node.parentElement) {
+    if (window.getComputedStyle(node).display === 'none') return false;
+  }
+  return true;
+}
+
 function isStarred() {
-  return Boolean(document.querySelector(STAR_FORM_SELECTOR));
+  const forms = document.querySelectorAll(STAR_FORM_SELECTOR);
+  return Array.from(forms).some(isVisiblyRendered);
 }
 
 function setBodyHTML(html) {
@@ -86,6 +94,52 @@ describe('star detection — form selector', () => {
   test('does not false-match a query-string echoing our repo path', () => {
     // An earlier `[action*="..."]` selector would have matched this. Must not.
     setBodyHTML(`<form action="${REPO_PATH}/anything?goto=${REPO_PATH}/unstar" method="post"></form>`);
+    expect(isStarred()).toBe(false);
+  });
+
+  test('treats GitHub layout where /unstar form exists but is display:none as NOT starred', () => {
+    // Critical: GitHub renders BOTH /star and /unstar forms in the DOM at
+    // all times, inside .starred / .unstarred wrapper divs that toggle via
+    // display:none. The mere presence of an /unstar form is NOT a starred
+    // signal — verified against live github.com on 2026-04-20. The only
+    // honest signal is whether the form is actually rendered to the user.
+    setBodyHTML(`
+      <div class="starred" style="display:none;">
+        <form action="${REPO_PATH}/unstar" method="post"><button>Unstar</button></form>
+      </div>
+      <div class="unstarred" style="display:flex;">
+        <form action="${REPO_PATH}/star" method="post"><button>Star</button></form>
+      </div>
+    `);
+    expect(isStarred()).toBe(false);
+  });
+
+  test('treats GitHub layout where /unstar wrapper is visible as starred', () => {
+    // The mirrored case — user IS starred, .starred wrapper is visible,
+    // .unstarred wrapper is hidden.
+    setBodyHTML(`
+      <div class="starred" style="display:flex;">
+        <form action="${REPO_PATH}/unstar" method="post"><button>Unstar</button></form>
+      </div>
+      <div class="unstarred" style="display:none;">
+        <form action="${REPO_PATH}/star" method="post"><button>Star</button></form>
+      </div>
+    `);
+    expect(isStarred()).toBe(true);
+  });
+
+  test('any display:none anywhere in the ancestor chain hides the form', () => {
+    // GitHub nests forms several divs deep. The check must walk the whole
+    // chain, not just the immediate parent.
+    setBodyHTML(`
+      <div style="display:none;">
+        <div>
+          <div>
+            <form action="${REPO_PATH}/unstar" method="post"><button>Unstar</button></form>
+          </div>
+        </div>
+      </div>
+    `);
     expect(isStarred()).toBe(false);
   });
 });

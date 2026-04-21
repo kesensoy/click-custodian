@@ -16,21 +16,36 @@ debugLog('DEBUG', 'Click Custodian content script loaded on:', window.location.h
   if (location.hostname !== 'github.com') return;
   if (location.pathname !== REPO_PATH && !location.pathname.startsWith(REPO_PATH + '/')) return;
 
-  // GitHub renders two mutually exclusive forms in the repo header — /star
-  // when unstarred, /unstar when starred. Match exact relative AND exact
-  // absolute form actions (defense-in-depth — relative is current behavior
-  // but undocumented), including the `?...` query-string variants. We
-  // deliberately avoid `[action$=]` and `[action*=]` because either could
-  // false-match nested paths like /someone-else/click-custodian/unstar or
-  // a query string echoing user input — both reachable from an attacker-
-  // controlled page on github.com.
+  // GitHub renders BOTH the /star AND /unstar forms in the repo header at
+  // the same time, regardless of starred state — they live as siblings
+  // inside .starred and .unstarred wrapper divs that toggle display via
+  // CSS. So "/unstar form exists" is NOT a starred signal; we have to check
+  // that an /unstar form is actually rendered (no display:none ancestor).
+  //
+  // Selector matches exact relative AND exact absolute form actions
+  // (defense-in-depth — relative is current GH behavior but undocumented),
+  // including the `?...` query-string variants. We deliberately avoid
+  // `[action$=]` and `[action*=]` because either could false-match nested
+  // paths like /someone-else/click-custodian/unstar or a query string
+  // echoing user input — both reachable from an attacker-controlled page.
   const STAR_FORM_SELECTOR = [
     `form[action="${REPO_PATH}/unstar"]`,
     `form[action^="${REPO_PATH}/unstar?"]`,
     `form[action="https://github.com${REPO_PATH}/unstar"]`,
     `form[action^="https://github.com${REPO_PATH}/unstar?"]`,
   ].join(', ');
-  const isStarred = () => Boolean(document.querySelector(STAR_FORM_SELECTOR));
+  const isVisiblyRendered = (el) => {
+    // Walk the ancestor chain — display:none anywhere up the tree hides
+    // the element. Cheaper and more portable than getBoundingClientRect.
+    for (let node = el; node && node !== document; node = node.parentElement) {
+      if (window.getComputedStyle(node).display === 'none') return false;
+    }
+    return true;
+  };
+  const isStarred = () => {
+    const forms = document.querySelectorAll(STAR_FORM_SELECTOR);
+    return Array.from(forms).some(isVisiblyRendered);
+  };
 
   if (isStarred()) {
     chrome.storage.sync.set({ hasStarred: true });
