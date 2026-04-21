@@ -100,26 +100,26 @@
 }
 
 /* ================================================================ */
-/* Palette: Ocean (teal + seafoam)                                  */
+/* Palette: Ember (terracotta + ember glow)                         */
 /* ================================================================ */
-[data-palette="ocean"] {
-  --navy:#0F3D3E; --navy-700:#1B5457; --navy-900:#072628;
-  --navy-rgb:15 61 62;
-  --cornflower:#7BC4B8; --cornflower-600:#4F9E93; --cornflower-050:#E5F2EE;
-  --cornflower-rgb:123 196 184;
-  --cream:#F6F3EC; --cream-200:#EDE8DC; --cream-300:#E0D8C2;
-  /* --ok shifts to olive-green to avoid crowding teal accent */
-  --ok:#5D8A3A;
+[data-palette="ember"] {
+  --navy:#5D3A22; --navy-700:#724A2E; --navy-900:#3F2614;
+  --navy-rgb:93 58 34;
+  --cornflower:#D89872; --cornflower-600:#B86A42; --cornflower-050:#F5E8DC;
+  --cornflower-rgb:184 106 66;
+  --cream:#FAF2E6; --cream-200:#F2E6D0; --cream-300:#E8D4B4;
+  /* --ok shifts to olive to avoid crowding the warm terracotta accent */
+  --ok:#7A8E4E;
 }
-[data-palette="ocean"][data-theme="dark"] {
-  --navy:#031516; --navy-700:#0B2527; --navy-900:#010A0B;
-  --navy-rgb:3 21 22;
-  --cornflower:#9FD8CE; --cornflower-600:#6CB3A7; --cornflower-050:#0F2A28;
-  --cornflower-rgb:159 216 206;
-  --cream:#08110F; --cream-200:#111F1C; --cream-300:#1B2A26;
-  --white:#162724;
-  --border:#1F322F; --border-strong:#2E4440; --rule:#19292B;
-  --ok:#8FBB63;
+[data-palette="ember"][data-theme="dark"] {
+  --navy:#1C0E06; --navy-700:#2E1A0D; --navy-900:#0E0703;
+  --navy-rgb:28 14 6;
+  --cornflower:#E8A87C; --cornflower-600:#C47A4D; --cornflower-050:#2A1A10;
+  --cornflower-rgb:232 168 124;
+  --cream:#120B06; --cream-200:#1E140B; --cream-300:#2A1D10;
+  --white:#1F1509;
+  --border:#3D2A18; --border-strong:#543A22; --rule:#28190D;
+  --ok:#9FB562;
 }
 *,*::before,*::after { box-sizing:border-box; }
 html,body { height:100%; }
@@ -234,7 +234,7 @@ kbd { font-family:var(--mono); font-size:10.5px; padding:2px 6px; border:1px sol
 .pop-row[data-pal="navy"]     .sw { background:#7CB9E8; }
 .pop-row[data-pal="moss"]     .sw { background:#7BA97A; }
 .pop-row[data-pal="graphite"] .sw { background:#C9A24B; }
-.pop-row[data-pal="ocean"]    .sw { background:#5BB8C4; }
+.pop-row[data-pal="ember"]    .sw { background:#B86A42; }
 .pop-row .check {
   margin-left:auto;
   width:12px; height:12px;

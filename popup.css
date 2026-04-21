@@ -9,6 +9,7 @@
   --border:#E6E3DA; --border-strong:#D4CFC2; --rule:#EEEAE0;
   --ok:#4B7A52; --rose:#C4563B;
   --warn:#B47B2A;
+  --star:#D9A636;
   --radius:10px; --radius-sm:6px;
   --mono:'JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
   --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
@@ -31,6 +32,7 @@
   --border:#2A3556; --border-strong:#3B476A; --rule:#1F2947;
   --ok:#7FB68A; --rose:#E38066;
   --warn:#E3B466;
+  --star:#F2C857;
   --btn-primary-bg:var(--cornflower-600);
   --btn-primary-bg-hover:var(--cornflower);
   --btn-primary-fg:#0B1426;
@@ -83,25 +85,25 @@
 }
 
 /* ================================================================ */
-/* Palette: Ocean (teal + seafoam)                                  */
+/* Palette: Ember (terracotta + ember glow)                         */
 /* ================================================================ */
-[data-palette="ocean"] {
-  --navy:#0F3D3E; --navy-700:#1B5457; --navy-900:#072628;
-  --navy-rgb:15 61 62;
-  --cornflower:#7BC4B8; --cornflower-600:#4F9E93; --cornflower-050:#E5F2EE;
-  --cornflower-rgb:123 196 184;
-  --cream:#F6F3EC; --cream-200:#EDE8DC; --cream-300:#E0D8C2;
-  --ok:#5D8A3A;
+[data-palette="ember"] {
+  --navy:#5D3A22; --navy-700:#724A2E; --navy-900:#3F2614;
+  --navy-rgb:93 58 34;
+  --cornflower:#D89872; --cornflower-600:#B86A42; --cornflower-050:#F5E8DC;
+  --cornflower-rgb:184 106 66;
+  --cream:#FAF2E6; --cream-200:#F2E6D0; --cream-300:#E8D4B4;
+  --ok:#7A8E4E;
 }
-[data-palette="ocean"][data-theme="dark"] {
-  --navy:#031516; --navy-700:#0B2527; --navy-900:#010A0B;
-  --navy-rgb:3 21 22;
-  --cornflower:#9FD8CE; --cornflower-600:#6CB3A7; --cornflower-050:#0F2A28;
-  --cornflower-rgb:159 216 206;
-  --cream:#08110F; --cream-200:#111F1C; --cream-300:#1B2A26;
-  --white:#162724;
-  --border:#1F322F; --border-strong:#2E4440; --rule:#19292B;
-  --ok:#8FBB63;
+[data-palette="ember"][data-theme="dark"] {
+  --navy:#1C0E06; --navy-700:#2E1A0D; --navy-900:#0E0703;
+  --navy-rgb:28 14 6;
+  --cornflower:#E8A87C; --cornflower-600:#C47A4D; --cornflower-050:#2A1A10;
+  --cornflower-rgb:232 168 124;
+  --cream:#120B06; --cream-200:#1E140B; --cream-300:#2A1D10;
+  --white:#1F1509;
+  --border:#3D2A18; --border-strong:#543A22; --rule:#28190D;
+  --ok:#9FB562;
 }
 
 *,*::before,*::after { box-sizing:border-box; }
@@ -147,6 +149,68 @@ body {
   letter-spacing:-.005em;
   color:var(--text-strong);
   line-height:1.1;
+}
+
+/* Star CTA — top-right of brand header. Hover reveals "Star us?" / "Thanks!"
+   text; first click opens the GH repo and persists has_starred so the icon
+   locks gold ("Thanks!") on every subsequent open. */
+.star-cta {
+  margin-left:auto;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 6px;
+  border-radius:6px;
+  color:var(--muted);
+  text-decoration:none;
+  flex:0 0 auto;
+  transition:color .15s ease, background .15s ease;
+}
+.star-cta-text {
+  font-family:var(--mono);
+  font-size:10.5px;
+  letter-spacing:.02em;
+  color:var(--muted);
+  opacity:0;
+  white-space:nowrap;
+  pointer-events:none;
+  transition:opacity .15s ease, color .15s ease;
+}
+.star-cta-icon {
+  width:14px;
+  height:14px;
+  flex:0 0 auto;
+}
+.star-cta:hover {
+  color:var(--star);
+  background:var(--cream-200);
+}
+.star-cta:hover .star-cta-text {
+  opacity:1;
+  color:var(--text-strong);
+}
+.star-cta:focus-visible {
+  outline:2px solid var(--cornflower-600);
+  outline-offset:2px;
+}
+/* Two text variants — display swapped based on .starred class. */
+.star-cta-text--starred { display:none; }
+.star-cta.starred .star-cta-text--unstarred { display:none; }
+.star-cta.starred .star-cta-text--starred { display:inline; }
+/* Locked-gold state when starred — gold at rest, no hover color shift. */
+.star-cta.starred { color:var(--star); }
+.star-cta.starred:hover {
+  color:var(--star);
+  background:var(--cream-200);
+}
+/* Spin replays via JS on each click while .starred — feedback that the click
+   landed even though we suppress navigation in that state. */
+@keyframes cc-star-spin {
+  from { transform:rotate(0deg); }
+  to   { transform:rotate(360deg); }
+}
+.star-cta-icon.spinning {
+  animation:cc-star-spin .6s ease-out;
 }
 
 /* Stats */

@@ -22,7 +22,7 @@
     var p = localStorage.getItem('cc-palette');
     // Only set attribute for non-default palettes; default "navy" is implied
     // by the absence of the attribute (base :root tokens).
-    if (p && p !== 'navy' && (p === 'moss' || p === 'graphite' || p === 'ocean')) {
+    if (p && p !== 'navy' && (p === 'moss' || p === 'graphite' || p === 'ember')) {
       document.documentElement.setAttribute('data-palette', p);
     }
   } catch (e) { /* no palette override */ }

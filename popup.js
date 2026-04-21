@@ -3,6 +3,8 @@
 document.addEventListener('DOMContentLoaded', async () => {
   await syncTheme();
   await loadStats();
+  await hydrateStarCta();
+  wireStarCta();
 
   // Open settings
   document.getElementById('open-options').addEventListener('click', () => {
@@ -138,6 +140,41 @@ function setStatus(message, type) {
   }
 }
 
+// Star CTA: the anchor's href takes first-time visitors to the repo;
+// content.js detects the actual starred state from GitHub's DOM and writes
+// has_starred=true. We never set the flag from the popup (visiting !=
+// actually starring) and we suppress the navigation entirely once starred —
+// the widget becomes a "thanks" affirmation, not a re-entry point.
+const HAS_STARRED_KEY = 'has_starred';
+
+async function hydrateStarCta() {
+  try {
+    const items = await chrome.storage.sync.get([HAS_STARRED_KEY]);
+    if (items[HAS_STARRED_KEY]) {
+      document.getElementById('star-cta')?.classList.add('starred');
+    }
+  } catch (e) { /* storage unavailable — leave default unstarred state */ }
+}
+
+function wireStarCta() {
+  const cta = document.getElementById('star-cta');
+  if (!cta) return;
+  cta.addEventListener('click', (e) => {
+    if (!cta.classList.contains('starred')) return;
+    e.preventDefault();
+    // Replay the spin: removing + re-adding .spinning is a no-op without a
+    // forced reflow because the browser coalesces both style changes into
+    // one recalc. Reading offsetWidth on the anchor flushes pending styles
+    // for the whole subtree (the SVG icon doesn't expose offsetWidth itself).
+    const icon = cta.querySelector('.star-cta-icon');
+    if (icon) {
+      icon.classList.remove('spinning');
+      void cta.offsetWidth;
+      icon.classList.add('spinning');
+    }
+  });
+}
+
 async function syncTheme() {
   try {
     const { theme, palette } = await chrome.storage.sync.get(['theme', 'palette']);
@@ -151,7 +188,7 @@ async function syncTheme() {
       }
       try { localStorage.setItem('cc-theme', theme); } catch (e) {}
     }
-    const valid = ['navy', 'moss', 'graphite', 'ocean'];
+    const valid = ['navy', 'moss', 'graphite', 'ember'];
     const resolvedPalette = valid.includes(palette) ? palette : 'navy';
     const currentPalette = document.documentElement.getAttribute('data-palette') || 'navy';
     if (resolvedPalette !== currentPalette) {

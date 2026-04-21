@@ -142,17 +142,17 @@
   --cc-cornflower-rgb: 201, 162, 75;
 }
 
-/* Ocean — dark */
-#click-custodian-overlay[data-cc-palette="ocean"] {
-  --cc-cornflower: #9FD8CE;
-  --cc-cornflower-600: #6CB3A7;
-  --cc-cornflower-rgb: 159, 216, 206;
+/* Ember — dark */
+#click-custodian-overlay[data-cc-palette="ember"] {
+  --cc-cornflower: #E8A87C;
+  --cc-cornflower-600: #C47A4D;
+  --cc-cornflower-rgb: 232, 168, 124;
 }
-/* Ocean — light */
-#click-custodian-overlay[data-cc-palette="ocean"][data-cc-theme="light"] {
-  --cc-cornflower: #7BC4B8;
-  --cc-cornflower-600: #4F9E93;
-  --cc-cornflower-rgb: 123, 196, 184;
+/* Ember — light */
+#click-custodian-overlay[data-cc-palette="ember"][data-cc-theme="light"] {
+  --cc-cornflower: #D89872;
+  --cc-cornflower-600: #B86A42;
+  --cc-cornflower-rgb: 184, 106, 66;
 }
 
 @keyframes click-custodian-fade-in {

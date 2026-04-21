@@ -17,7 +17,7 @@ let currentTheme = (() => {
 let currentPalette = document.documentElement.getAttribute('data-palette') || 'navy';
 let pendingImport = null;
 
-const VALID_PALETTES = ['navy', 'moss', 'graphite', 'ocean'];
+const VALID_PALETTES = ['navy', 'moss', 'graphite', 'ember'];
 const VALID_THEMES = ['light', 'dark', 'auto'];
 const themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 

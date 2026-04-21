@@ -2,6 +2,40 @@
 
 debugLog('DEBUG', 'Click Custodian content script loaded on:', window.location.href);
 
+// Detect whether the visitor has starred our GitHub repo and lock "Thanks!"
+// into the popup CTA. content.js runs on <all_urls>, so the hostname +
+// pathname guard bails out cheaply before any DOM work on non-repo pages.
+// We only ever WRITE has_starred=true: unstarring shouldn't flip the popup
+// back to "Star us?" once a user has earned the thanks.
+(function detectRepoStar() {
+  const REPO_PATH = '/kesensoy/click-custodian';
+  if (location.hostname !== 'github.com') return;
+  if (location.pathname !== REPO_PATH && !location.pathname.startsWith(REPO_PATH + '/')) return;
+
+  // GitHub renders two mutually exclusive forms in the repo header — /star
+  // when unstarred, /unstar when starred. Match the exact action (plus the
+  // `?...` query variant) so `/stargazers` can't false-positive.
+  const isStarred = () => Boolean(document.querySelector(
+    `form[action="${REPO_PATH}/unstar"], form[action^="${REPO_PATH}/unstar?"]`
+  ));
+
+  if (isStarred()) {
+    chrome.storage.sync.set({ has_starred: true });
+    return;
+  }
+  // GitHub sometimes late-renders the header widget; retry briefly.
+  let attempts = 0;
+  const timer = setInterval(() => {
+    attempts++;
+    if (isStarred()) {
+      chrome.storage.sync.set({ has_starred: true });
+      clearInterval(timer);
+    } else if (attempts >= 6) {
+      clearInterval(timer);
+    }
+  }, 500);
+})();
+
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   debugLog('DEBUG', 'Content script received message:', request.action, request);
