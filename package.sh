@@ -31,9 +31,15 @@ cd "$TEMP_DIR"
 
 rm -rf .git .gitignore .DS_Store
 rm -rf .claude .mcp.json
-rm -f package.sh package.json
+rm -f package.sh package.json package-lock.json
 rm -f test-page.html
-rm -rf docs/ manual-tests/ tests/ e2e/
+rm -f playwright.config.js jest.config.js
+rm -rf docs/ manual-tests/ tests/ e2e/ node_modules/
+# scripts/ holds the screenshot capture pipeline — its HTML files
+# still <link> to fonts.googleapis.com for the listing screenshots.
+# Strip so the published zip contains zero references to external
+# CDNs (the runtime extension uses the bundled fonts/ directory).
+rm -rf scripts/
 
 # Create ZIP
 ZIP_NAME="click-custodian-v$(grep '"version"' manifest.json | sed 's/.*: "\(.*\)".*/\1/').zip"
