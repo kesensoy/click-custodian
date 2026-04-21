@@ -148,10 +148,14 @@ testWithAll.describe('Baseline: Close Rule Only', () => {
     // Verify the overlay's user-facing copy and that a live countdown
     // number is rendered. The pre-redesign copy ("close in N seconds")
     // was replaced by a heading + a standalone number inside the ring.
+    // Upper bound prevents a runaway/uninitialized seconds value from
+    // sneaking through "greater than 0".
     const countdownText = await countdown.textContent();
     expect(countdownText).toMatch(/closing this tab/i);
     const secondsValue = await page.locator('#click-custodian-seconds').textContent();
-    expect(parseInt(secondsValue, 10)).toBeGreaterThan(0);
+    const seconds = parseInt(secondsValue, 10);
+    expect(seconds).toBeGreaterThan(0);
+    expect(seconds).toBeLessThanOrEqual(30);
 
     // Wait for tab to close
     await page.waitForEvent('close', { timeout: 5000 });

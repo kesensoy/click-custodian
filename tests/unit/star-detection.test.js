@@ -14,7 +14,7 @@ const REPO_PATH = '/kesensoy/click-custodian';
  */
 function isStarred() {
   return Boolean(document.querySelector(
-    `form[action="${REPO_PATH}/unstar"], form[action^="${REPO_PATH}/unstar?"]`
+    `form[action$="${REPO_PATH}/unstar"], form[action*="${REPO_PATH}/unstar?"]`
   ));
 }
 
@@ -60,6 +60,15 @@ describe('star detection — form selector', () => {
   test('does not match a different repo\'s unstar form', () => {
     setBodyHTML(`<form action="/someoneelse/different-repo/unstar" method="post"></form>`);
     expect(isStarred()).toBe(false);
+  });
+
+  test('detects starred state when GitHub renders absolute form actions', () => {
+    // Defense-in-depth: GitHub currently renders relative actions, but if
+    // they ever switch to absolute URLs the suffix-match selector still
+    // catches it. The hostname guard in production prevents this from
+    // false-positive-matching a malicious form on a non-github.com page.
+    setBodyHTML(`<form action="https://github.com${REPO_PATH}/unstar" method="post"></form>`);
+    expect(isStarred()).toBe(true);
   });
 });
 

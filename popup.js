@@ -145,7 +145,7 @@ function setStatus(message, type) {
 // has_starred=true. We never set the flag from the popup (visiting !=
 // actually starring) and we suppress the navigation entirely once starred —
 // the widget becomes a "thanks" affirmation, not a re-entry point.
-const HAS_STARRED_KEY = 'has_starred';
+const HAS_STARRED_KEY = 'hasStarred';
 
 async function hydrateStarCta() {
   try {

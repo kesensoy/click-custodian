@@ -55,7 +55,7 @@ Page complete → Poll for button (max 3s) → Found? → Green highlight → Wa
 **GitHub Star Detection (`detectRepoStar()` IIFE at top of file):**
 - Runs on every page load (content.js is `<all_urls>`); cheap hostname + pathname guard bails out before any DOM work elsewhere.
 - On `github.com/kesensoy/click-custodian/*`, polls for the `/unstar` form (up to ~3s) — its presence means the visitor has starred.
-- One-way write: only sets `has_starred=true` in `chrome.storage.sync`. Un-starring does NOT revoke the popup's "Thanks!" state (intentional — see Star CTA section).
+- One-way write: only sets `hasStarred=true` in `chrome.storage.sync`. Un-starring does NOT revoke the popup's "Thanks!" state (intentional — see Star CTA section).
 
 ### Options Page (`options.js`)
 **Single Rule List:**
@@ -153,11 +153,13 @@ The palette name appears in **six** places — keep them in sync (the regression
 **Popup widget (top-right of brand row):**
 - Default state: small outline star icon, hover reveals "Star us?" tooltip-style text.
 - Click in default state: opens `https://github.com/kesensoy/click-custodian` in a new tab; popup closes naturally.
-- After the user actually stars the repo, `content.js:detectRepoStar()` writes `has_starred=true` (see Content Script section).
+- After the user actually stars the repo, `content.js:detectRepoStar()` writes `hasStarred=true` (see Content Script section).
 - On next popup open, hydrate adds `.starred` to the CTA: gold color, "Thanks!" label.
 - Click in starred state: `preventDefault()` stops navigation, icon spins as click feedback. The widget becomes a pure affirmation; users can't accidentally land on a repo state that disagrees with the popup.
 
 **Why one-way:** un-starring should not flip the popup back to "Star us?" — that would feel punishing and the user already earned the thanks.
+
+**Known limitation:** detection runs once per page load with a brief retry window for late-rendered headers. Starring the repo via in-page (turbo) navigation without a full reload won't flip the popup until the next time GitHub loads the repo page fresh. Acceptable for now since the natural flow is "click → new tab → star → close tab" anyway.
 
 ## Pattern Matching
 

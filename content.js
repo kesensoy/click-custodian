@@ -5,22 +5,29 @@ debugLog('DEBUG', 'Click Custodian content script loaded on:', window.location.h
 // Detect whether the visitor has starred our GitHub repo and lock "Thanks!"
 // into the popup CTA. content.js runs on <all_urls>, so the hostname +
 // pathname guard bails out cheaply before any DOM work on non-repo pages.
-// We only ever WRITE has_starred=true: unstarring shouldn't flip the popup
+// We only ever WRITE hasStarred=true: unstarring shouldn't flip the popup
 // back to "Star us?" once a user has earned the thanks.
+//
+// Limitation: detection runs once per page load + a brief retry for
+// late-rendered headers. Starring the repo without reloading (a turbo
+// nav or in-place click) won't flip the popup until the next page load.
 (function detectRepoStar() {
   const REPO_PATH = '/kesensoy/click-custodian';
   if (location.hostname !== 'github.com') return;
   if (location.pathname !== REPO_PATH && !location.pathname.startsWith(REPO_PATH + '/')) return;
 
   // GitHub renders two mutually exclusive forms in the repo header — /star
-  // when unstarred, /unstar when starred. Match the exact action (plus the
-  // `?...` query variant) so `/stargazers` can't false-positive.
+  // when unstarred, /unstar when starred. Match relative AND absolute form
+  // actions (defense-in-depth — relative is current behavior but undocumented),
+  // including the `?...` query-string variant. False-positive scoping is
+  // handled by the hostname guard above and by anchoring to the unique
+  // REPO_PATH/unstar suffix, so `/stargazers` cannot match.
   const isStarred = () => Boolean(document.querySelector(
-    `form[action="${REPO_PATH}/unstar"], form[action^="${REPO_PATH}/unstar?"]`
+    `form[action$="${REPO_PATH}/unstar"], form[action*="${REPO_PATH}/unstar?"]`
   ));
 
   if (isStarred()) {
-    chrome.storage.sync.set({ has_starred: true });
+    chrome.storage.sync.set({ hasStarred: true });
     return;
   }
   // GitHub sometimes late-renders the header widget; retry briefly.
@@ -28,7 +35,7 @@ debugLog('DEBUG', 'Click Custodian content script loaded on:', window.location.h
   const timer = setInterval(() => {
     attempts++;
     if (isStarred()) {
-      chrome.storage.sync.set({ has_starred: true });
+      chrome.storage.sync.set({ hasStarred: true });
       clearInterval(timer);
     } else if (attempts >= 6) {
       clearInterval(timer);

@@ -9,7 +9,7 @@ Click Custodian stores the following data **locally on your device** in your bro
 - **Automation rules** (`tabCloseRules`, `buttonClickRules`): The URL patterns, CSS selectors, button-text filters, delays, names, and enabled/disabled state for every rule you create.
 - **Theme preference** (`theme`): `light`, `dark`, or `auto`.
 - **Palette preference** (`palette`): `navy`, `moss`, `graphite`, or `ember`.
-- **"Star us?" state** (`has_starred`): A boolean indicating whether you have starred the `github.com/kesensoy/click-custodian` repository. This is detected by reading the GitHub page's DOM in your existing browser session — no data is sent anywhere.
+- **"Star us?" state** (`hasStarred`): A boolean indicating whether you have starred the `github.com/kesensoy/click-custodian` repository. This is detected by reading the GitHub page's DOM in your existing browser session — no data is sent anywhere.
 
 A short-lived in-memory `Set` (in the background service worker) tracks recently-processed `tabId/URL` combinations for up to 5 seconds to prevent duplicate event handling on hash-routed single-page apps. This is not persisted to disk and is cleared automatically.
 
@@ -17,12 +17,17 @@ A short-lived in-memory `Set` (in the background service worker) tracks recently
 
 Click Custodian does **not**:
 
-- Make any outbound network requests
-- Send data to any first-party or third-party servers
+- Send your rules, preferences, or any user-generated data to any server
 - Use analytics, telemetry, advertising, or tracking of any kind
 - Read, store, or transmit the content of pages you visit (except for the limited DOM read on `github.com/kesensoy/click-custodian` to detect star state, which never leaves your device)
 
 The extension's URL pattern matching runs entirely inside your browser. The countdown overlay and button-click logic operate on the live page DOM and produce no external signals.
+
+### Third-party requests
+
+The popup and settings pages load typography (Fraunces, Inter, JetBrains Mono) from **Google Fonts** (`fonts.googleapis.com`, `fonts.gstatic.com`). These requests are initiated by the browser when the popup or settings page is opened and may transmit your IP address and User-Agent to Google as part of standard HTTP. Google's privacy policy applies to these requests. Click Custodian itself does not log, store, or process any of this information.
+
+If you prefer no third-party requests at all, this is a known follow-up: the fonts can be self-bundled in a future release. Track or contribute at the [GitHub repository](https://github.com/kesensoy/click-custodian).
 
 ## Permissions
 

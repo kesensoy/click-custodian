@@ -9,6 +9,8 @@
   --border:#E6E3DA; --border-strong:#D4CFC2; --rule:#EEEAE0;
   --ok:#4B7A52; --rose:#C4563B;
   --warn:#B47B2A;
+  /* Star CTA gold — intentionally NOT redefined per palette so the
+     "thanks" affirmation reads consistently. Light/dark variants only. */
   --star:#D9A636;
   --radius:10px; --radius-sm:6px;
   --mono:'JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
@@ -152,7 +154,7 @@ body {
 }
 
 /* Star CTA — top-right of brand header. Hover reveals "Star us?" / "Thanks!"
-   text; first click opens the GH repo and persists has_starred so the icon
+   text; first click opens the GH repo and persists hasStarred so the icon
    locks gold ("Thanks!") on every subsequent open. */
 .star-cta {
   margin-left:auto;
