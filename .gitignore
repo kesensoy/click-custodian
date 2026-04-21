@@ -39,8 +39,9 @@ coverage/
 .coderabbit.yaml
 .swissarmyhammer/
 
-# Local AI workflow artifacts (specs, plans, transcripts)
-docs/superpowers/
+# Plans, specs, transcripts, and other local-only working docs.
+# Kept on disk for reference but never committed.
+docs/
 
 # Design exploration artifacts (mockups, screenshots, logo source variants)
 design-explorations/
