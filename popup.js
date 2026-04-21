@@ -142,18 +142,34 @@ function setStatus(message, type) {
 
 // Star CTA: the anchor's href takes first-time visitors to the repo;
 // content.js detects the actual starred state from GitHub's DOM and writes
-// has_starred=true. We never set the flag from the popup (visiting !=
+// hasStarred=true. We never set the flag from the popup (visiting !=
 // actually starring) and we suppress the navigation entirely once starred —
 // the widget becomes a "thanks" affirmation, not a re-entry point.
 const HAS_STARRED_KEY = 'hasStarred';
 
 async function hydrateStarCta() {
+  const cta = document.getElementById('star-cta');
+  if (!cta) return;
+  applyStarCtaA11y(cta, false);
   try {
     const items = await chrome.storage.sync.get([HAS_STARRED_KEY]);
     if (items[HAS_STARRED_KEY]) {
-      document.getElementById('star-cta')?.classList.add('starred');
+      cta.classList.add('starred');
+      applyStarCtaA11y(cta, true);
     }
   } catch (e) { /* storage unavailable — leave default unstarred state */ }
+}
+
+// The visible "Star us?" / "Thanks!" span is the accessible name when sighted
+// hover reveals it, but keyboard-only / focus-only users see an empty-looking
+// icon — driving aria-label + title from state restores parity without
+// re-introducing the round-1 staleness bug.
+function applyStarCtaA11y(cta, starred) {
+  const label = starred
+    ? 'Thanks for starring Click Custodian on GitHub'
+    : 'Star Click Custodian on GitHub';
+  cta.setAttribute('aria-label', label);
+  cta.setAttribute('title', label);
 }
 
 function wireStarCta() {

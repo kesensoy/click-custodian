@@ -154,7 +154,11 @@ testWithAll.describe('Baseline: Close Rule Only', () => {
     expect(countdownText).toMatch(/closing this tab/i);
     const secondsValue = await page.locator('#click-custodian-seconds').textContent();
     const seconds = parseInt(secondsValue, 10);
-    expect(seconds).toBeGreaterThan(0);
+    // Lower bound is >= 0 (not > 0) because the countdown can race past
+    // 1 → 0 between content-script injection and the locator read on
+    // slower CI runs. The upper bound still catches a runaway value.
+    expect(Number.isFinite(seconds)).toBe(true);
+    expect(seconds).toBeGreaterThanOrEqual(0);
     expect(seconds).toBeLessThanOrEqual(30);
 
     // Wait for tab to close

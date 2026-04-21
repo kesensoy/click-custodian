@@ -17,14 +17,20 @@ debugLog('DEBUG', 'Click Custodian content script loaded on:', window.location.h
   if (location.pathname !== REPO_PATH && !location.pathname.startsWith(REPO_PATH + '/')) return;
 
   // GitHub renders two mutually exclusive forms in the repo header — /star
-  // when unstarred, /unstar when starred. Match relative AND absolute form
-  // actions (defense-in-depth — relative is current behavior but undocumented),
-  // including the `?...` query-string variant. False-positive scoping is
-  // handled by the hostname guard above and by anchoring to the unique
-  // REPO_PATH/unstar suffix, so `/stargazers` cannot match.
-  const isStarred = () => Boolean(document.querySelector(
-    `form[action$="${REPO_PATH}/unstar"], form[action*="${REPO_PATH}/unstar?"]`
-  ));
+  // when unstarred, /unstar when starred. Match exact relative AND exact
+  // absolute form actions (defense-in-depth — relative is current behavior
+  // but undocumented), including the `?...` query-string variants. We
+  // deliberately avoid `[action$=]` and `[action*=]` because either could
+  // false-match nested paths like /someone-else/click-custodian/unstar or
+  // a query string echoing user input — both reachable from an attacker-
+  // controlled page on github.com.
+  const STAR_FORM_SELECTOR = [
+    `form[action="${REPO_PATH}/unstar"]`,
+    `form[action^="${REPO_PATH}/unstar?"]`,
+    `form[action="https://github.com${REPO_PATH}/unstar"]`,
+    `form[action^="https://github.com${REPO_PATH}/unstar?"]`,
+  ].join(', ');
+  const isStarred = () => Boolean(document.querySelector(STAR_FORM_SELECTOR));
 
   if (isStarred()) {
     chrome.storage.sync.set({ hasStarred: true });
