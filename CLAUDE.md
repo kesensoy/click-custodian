@@ -21,13 +21,14 @@ Chrome extension that auto-closes confirmation tabs and auto-clicks repetitive b
 ### File Structure
 ```
 click-custodian/
-├── manifest.json       # Chrome Extension Manifest V3
+├── manifest.json        # Chrome Extension Manifest V3
 ├── seed-examples.json   # First-install seed (bundled in extension)
-├── background.js       # Service worker - monitors tabs, seeds on install
-├── content.js         # Smart polling, button clicking
-├── content.css        # Countdown overlay styles
-├── options.html/css/js # Settings UI
-└── popup.html/js      # Extension popup
+├── background.js        # Service worker - monitors tabs, seeds on install
+├── content.js           # Smart polling + button clicking + GH star detection
+├── content.css          # Countdown overlay styles (palette-aware)
+├── theme-init.js        # Synchronous flash-prevention for theme + palette
+├── options.html/css/js  # Settings UI (rules, palette/theme picker, JSON editor)
+└── popup.html/css/js    # Extension popup (stats + actions + Star CTA)
 ```
 
 ## Key Components
@@ -51,12 +52,33 @@ click-custodian/
 Page complete → Poll for button (max 3s) → Found? → Green highlight → Wait rule.delay → Click
 ```
 
+**GitHub Star Detection (`detectRepoStar()` IIFE at top of file):**
+- Runs on every page load (content.js is `<all_urls>`); cheap hostname + pathname guard bails out before any DOM work elsewhere.
+- On `github.com/kesensoy/click-custodian/*`, polls for the `/unstar` form (up to ~3s) — its presence means the visitor has starred.
+- One-way write: only sets `has_starred=true` in `chrome.storage.sync`. Un-starring does NOT revoke the popup's "Thanks!" state (intentional — see Star CTA section).
+
 ### Options Page (`options.js`)
 **Single Rule List:**
 - All rules render as editable rows with toggle + delete.
 - Import/Export buttons in the sticky action bar support rule-set sharing.
 - "Reset to defaults" button replaces the current rules with the bundled seed.
 - Import dialog offers Replace (destructive, confirm-gated) or Merge (re-IDs imported rules).
+
+**JSON Editor View:**
+- Toggle between Form (default) and JSON view via the view switch in the action bar.
+- JSON view exposes the raw `tabCloseRules` / `buttonClickRules` payload for power-user edits.
+- Save validates structure before writing back to storage; invalid JSON keeps the previous state.
+
+**Theme + Palette Picker:**
+- Theme: Light / Dark / Auto (Auto follows `prefers-color-scheme`).
+- Palette: Navy (default) / Moss / Graphite / Ember.
+- Selection persists in `chrome.storage.sync` (`theme`, `palette` keys) and mirrors to `localStorage` for flash-free reload (see Theming).
+
+### Popup (`popup.html/js`)
+- Stats card: "enabled / total" per rule type, tinted with `--warn` when any rule of that type is disabled.
+- Open Settings + Test on Current Tab actions.
+- Star CTA (top-right of brand row): see Star CTA section below.
+- Status footer: pulsing dot, transient success/error/warning/info messages auto-revert after 5s.
 
 ## Rule Schema
 
@@ -99,6 +121,43 @@ Bundled in `seed-examples.json`, loaded once on first install:
 (none shipped — users add their own)
 
 Users can delete seeded rules at any time; they are not restored on update. The "Reset to defaults" button reloads the seed destructively.
+
+## Theming
+
+### Theme (light/dark/auto)
+- Stored as `theme` in `chrome.storage.sync`. Resolved value (`light`|`dark`) is applied to `<html data-theme="...">`.
+- `theme-init.js` is a synchronous script loaded in `<head>` BEFORE the stylesheet to prevent a flash of wrong colors. It reads `localStorage` (mirror of the sync value) since `chrome.storage` is async; the popup/options scripts re-sync from `chrome.storage` after load and update both attribute and localStorage if they drift.
+- The `prefers-color-scheme` media query feeds the resolution when the stored value is `auto` (or absent).
+
+### Palettes
+Four palettes live as CSS custom-property blocks: `navy` (default — bare `:root`), `moss`, `graphite`, `ember`. Each defines both light and dark variants:
+
+```css
+[data-palette="moss"] { --navy:...; --cornflower:...; --cream:...; ... }
+[data-palette="moss"][data-theme="dark"] { /* dark overrides */ }
+```
+
+The default palette is implied by absence of the `data-palette` attribute. The countdown overlay uses parallel `[data-cc-palette="..."]` blocks in `content.css` (separate prefix to avoid clobbering host-page tokens).
+
+### Adding a Palette
+The palette name appears in **six** places — keep them in sync (the regression test in `tests/unit/palette-tokens.test.js` enforces this):
+1. `popup.css` — light + dark blocks
+2. `options.css` — light + dark blocks + `.pop-row[data-pal="..."] .sw { background:...; }` swatch
+3. `content.css` — overlay light + dark blocks (using `--cc-` prefix)
+4. `options.html` — `<button data-pal="..."` row in the picker dropdown
+5. `options.js`, `popup.js` — `VALID_PALETTES` / inline `valid` array
+6. `theme-init.js` — flash-prevention allowlist (inline OR-chain)
+
+## Star CTA
+
+**Popup widget (top-right of brand row):**
+- Default state: small outline star icon, hover reveals "Star us?" tooltip-style text.
+- Click in default state: opens `https://github.com/kesensoy/click-custodian` in a new tab; popup closes naturally.
+- After the user actually stars the repo, `content.js:detectRepoStar()` writes `has_starred=true` (see Content Script section).
+- On next popup open, hydrate adds `.starred` to the CTA: gold color, "Thanks!" label.
+- Click in starred state: `preventDefault()` stops navigation, icon spins as click feedback. The widget becomes a pure affirmation; users can't accidentally land on a repo state that disagrees with the popup.
+
+**Why one-way:** un-starring should not flip the popup back to "Star us?" — that would feel punishing and the user already earned the thanks.
 
 ## Pattern Matching
 
@@ -200,6 +259,13 @@ The seed is not re-applied on update; only fresh installs see changes. Existing 
 | Button not found | Selector or timing issue | Check content script console for polling logs |
 
 ### Testing
+
+**Unit tests (Jest + jsdom):** `npm run test:unit`
+- Source files don't export functions, so unit tests copy the function under test into the test file (see `tests/unit/pattern-matching.test.js` for the canonical pattern).
+- `tests/unit/palette-tokens.test.js` is a regression test that enforces palette-name agreement across all six surfaces — run it after any palette add/rename/remove.
+- `tests/unit/star-detection.test.js` covers the GitHub star form selector and the URL guard predicates.
+
+**E2E (Playwright):** `npm run test:e2e`
 
 **Manual Testing:**
 1. Load extension (see above)

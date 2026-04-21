@@ -1,0 +1,105 @@
+/**
+ * Unit tests for the GitHub repo star-detection logic in content.js.
+ *
+ * Mirrors the project's existing pattern (see pattern-matching.test.js):
+ * production source files don't export functions, so the predicate is
+ * copied here. Keep this in sync with content.js:detectRepoStar().
+ */
+
+const REPO_PATH = '/kesensoy/click-custodian';
+
+/**
+ * COPIED FROM content.js — the form-action selector that distinguishes
+ * starred (unstar form present) from unstarred (star form present).
+ */
+function isStarred() {
+  return Boolean(document.querySelector(
+    `form[action="${REPO_PATH}/unstar"], form[action^="${REPO_PATH}/unstar?"]`
+  ));
+}
+
+function setBodyHTML(html) {
+  document.body.innerHTML = html;
+}
+
+describe('star detection — form selector', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  test('detects starred state when /unstar form is present', () => {
+    setBodyHTML(`<form action="${REPO_PATH}/unstar" method="post"></form>`);
+    expect(isStarred()).toBe(true);
+  });
+
+  test('detects starred state when /unstar form has query string', () => {
+    setBodyHTML(`<form action="${REPO_PATH}/unstar?async=1" method="post"></form>`);
+    expect(isStarred()).toBe(true);
+  });
+
+  test('reports unstarred when only /star form is present', () => {
+    setBodyHTML(`<form action="${REPO_PATH}/star" method="post"></form>`);
+    expect(isStarred()).toBe(false);
+  });
+
+  test('reports unstarred on empty DOM (header not yet rendered)', () => {
+    expect(isStarred()).toBe(false);
+  });
+
+  test('does not false-positive on /stargazers links — substring match would', () => {
+    // /stargazers is a real GitHub URL on every repo page. A naive
+    // selector like `form[action^="/repo/star"]` would match it; the
+    // exact + `?` variants in the production selector must not.
+    setBodyHTML(`
+      <a href="${REPO_PATH}/stargazers">123 stargazers</a>
+      <form action="${REPO_PATH}/stargazers/refresh"></form>
+    `);
+    expect(isStarred()).toBe(false);
+  });
+
+  test('does not match a different repo\'s unstar form', () => {
+    setBodyHTML(`<form action="/someoneelse/different-repo/unstar" method="post"></form>`);
+    expect(isStarred()).toBe(false);
+  });
+});
+
+describe('star detection — URL guard', () => {
+  // The production code guards with:
+  //   if (location.hostname !== 'github.com') return;
+  //   if (location.pathname !== REPO_PATH &&
+  //       !location.pathname.startsWith(REPO_PATH + '/')) return;
+  //
+  // Validates the matcher predicate directly — keeps the test
+  // independent of jsdom's read-only `location` object.
+  function shouldRunOn(hostname, pathname) {
+    if (hostname !== 'github.com') return false;
+    if (pathname !== REPO_PATH && !pathname.startsWith(REPO_PATH + '/')) return false;
+    return true;
+  }
+
+  test('runs on the bare repo path', () => {
+    expect(shouldRunOn('github.com', REPO_PATH)).toBe(true);
+  });
+
+  test('runs on subpaths (issues, pulls, tree, etc.)', () => {
+    expect(shouldRunOn('github.com', `${REPO_PATH}/issues`)).toBe(true);
+    expect(shouldRunOn('github.com', `${REPO_PATH}/tree/main`)).toBe(true);
+  });
+
+  test('skips non-github hosts', () => {
+    expect(shouldRunOn('gitlab.com', REPO_PATH)).toBe(false);
+    expect(shouldRunOn('example.com', '/anything')).toBe(false);
+  });
+
+  test('skips other repos on github.com', () => {
+    expect(shouldRunOn('github.com', '/kesensoy/sneetches')).toBe(false);
+    expect(shouldRunOn('github.com', '/anyone/click-custodian-fork')).toBe(false);
+  });
+
+  test('skips paths that share the repo prefix without the slash boundary', () => {
+    // /kesensoy/click-custodian-other should NOT match /kesensoy/click-custodian.
+    // The startsWith check uses REPO_PATH + '/' specifically to enforce the
+    // boundary and avoid this false positive.
+    expect(shouldRunOn('github.com', '/kesensoy/click-custodian-other')).toBe(false);
+  });
+});
