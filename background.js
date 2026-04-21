@@ -15,24 +15,6 @@ function checkTrackingSetSize() {
 }
 
 /**
- * Shows a notification to the user for critical errors.
- * @param {string} title - Notification title
- * @param {string} message - Notification message
- */
-function showCriticalError(title, message) {
-  // Check if notifications permission is granted
-  if (chrome.notifications) {
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: 'icons/icon48.png',
-      title: title,
-      message: message,
-      priority: 2
-    });
-  }
-}
-
-/**
  * Sends a message to a content script with automatic retry logic.
  * @param {number} tabId - The tab ID to send message to
  * @param {object} message - The message object to send
