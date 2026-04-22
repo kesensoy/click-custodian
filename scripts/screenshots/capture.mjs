@@ -127,6 +127,13 @@ const CWS_TEMPLATES = [
     height: 560,
     out: path.join(ASSETS_DIR, 'cws-promo-marquee-hero.png'),
   },
+  {
+    label: 'cws-popup-context',
+    html: 'scripts/screenshots/cws-popup-context.html',
+    width: 1280,
+    height: 800,
+    out: path.join(ASSETS_DIR, 'cws-popup-context.png'),
+  },
 ];
 
 // Rules seeded into the extension for the popup/settings shots. We

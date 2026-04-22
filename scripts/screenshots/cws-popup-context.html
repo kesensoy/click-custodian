@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Click Custodian — CWS popup-in-context 1280x800</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 1280px; height: 800px;
+    background: #0B1426;
+    color: #EDEFF5;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* Ambient background — same vocabulary as hero */
+  body::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(900px 500px at 75% 55%, rgba(159,203,237,0.07), transparent 65%),
+      radial-gradient(700px 400px at 18% 88%, rgba(36,51,86,0.45), transparent 60%);
+    pointer-events: none;
+  }
+  body::after {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(159,203,237,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(159,203,237,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.85), transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.85), transparent 75%);
+    pointer-events: none;
+  }
+
+  /* Faux browser chrome at top */
+  .browser-chrome {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    background: #15203A;
+    border-bottom: 1px solid #2A3556;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 12px 24px rgba(0,0,0,0.25);
+    z-index: 1;
+  }
+  .titlebar {
+    height: 36px;
+    display: flex; align-items: center;
+    padding: 0 16px;
+    gap: 14px;
+    background: #1A2440;
+    border-bottom: 1px solid rgba(0,0,0,0.2);
+  }
+  .traffic { display: flex; gap: 8px; }
+  .traffic span {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #3B476A;
+  }
+  .traffic .red { background: #E66B6B; }
+  .traffic .yellow { background: #E5C26B; }
+  .traffic .green { background: #6BC180; }
+
+  .tabs {
+    display: flex; align-items: flex-end; gap: 4px;
+    padding-top: 4px;
+  }
+  .tab {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 14px 8px;
+    border-radius: 8px 8px 0 0;
+    background: #15203A;
+    font-size: 12px;
+    color: #B5BDD0;
+    max-width: 240px;
+  }
+  .tab .fav {
+    width: 12px; height: 12px; border-radius: 3px;
+    background: #3B476A;
+    flex-shrink: 0;
+  }
+  .tab .label {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .url-toolbar {
+    height: 44px;
+    display: flex; align-items: center;
+    padding: 0 14px; gap: 12px;
+  }
+  .nav-btns { display: flex; gap: 4px; }
+  .nav-btns span {
+    width: 26px; height: 26px; border-radius: 5px;
+    background: rgba(159,203,237,0.05);
+    display: flex; align-items: center; justify-content: center;
+    color: #8D96AE;
+    font-size: 14px;
+  }
+  .url {
+    flex: 1;
+    height: 30px;
+    background: #0F1527;
+    border: 1px solid #2A3556;
+    border-radius: 7px;
+    display: flex; align-items: center;
+    padding: 0 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: #8D96AE;
+    gap: 8px;
+  }
+  .url .lock { color: #7FB68A; font-size: 11px; }
+  .url .host { color: #EDEFF5; }
+  .url .path { color: #8D96AE; }
+
+  .ext-icons { display: flex; gap: 6px; }
+  .ext {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: rgba(159,203,237,0.05);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ext.cc {
+    /* highlighted "you just clicked this" state — intentionally bold so
+       the viewer's eye lands on the icon → popup chain. */
+    background: rgba(159,203,237,0.32);
+    box-shadow:
+      0 0 0 2px rgba(159,203,237,0.95),
+      0 0 24px rgba(159,203,237,0.7),
+      0 0 48px rgba(159,203,237,0.35);
+  }
+
+  /* Popup, floating below the highlighted icon */
+  .popup-anchor {
+    position: absolute;
+    top: 132px;
+    /* CC icon center sits ~52px from the right edge of the toolbar.
+       Anchor the popup's arrow under that x. */
+    right: 28px;
+    z-index: 3;
+  }
+  .popup-anchor::before {
+    content: '';
+    position: absolute;
+    /* True upward-pointing triangle (CSS border trick) — reads as a
+       deliberate "popup belongs to that icon" pointer rather than a
+       diamond corner that bleeds into the popup edge. drop-shadow
+       gives it depth against the dark navy page background. */
+    top: -14px;
+    right: 30px;
+    width: 0; height: 0;
+    border-left: 16px solid transparent;
+    border-right: 16px solid transparent;
+    border-bottom: 16px solid #F8F1E2;
+    filter: drop-shadow(0 -3px 6px rgba(0,0,0,0.35));
+    z-index: 4;
+  }
+  .popup-shot {
+    /* popup.png is 600x578 native (DSF=2 of 300x289 CSS). Scale down to
+       450x434 here so it sits comfortably in the canvas without
+       dominating the composition. The dpi loss is invisible at CWS
+       thumbnail sizes. */
+    width: 450px; height: 434px;
+    display: block;
+    border-radius: 14px;
+    box-shadow:
+      0 24px 48px rgba(0,0,0,0.55),
+      0 8px 18px rgba(0,0,0,0.4),
+      0 0 0 1px rgba(255,255,255,0.04);
+  }
+
+  /* Brand caption on the left */
+  .caption {
+    position: absolute;
+    left: 64px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    max-width: 420px;
+  }
+  .caption .brand {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 32px;
+  }
+  .caption .logo {
+    width: 44px; height: 44px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: linear-gradient(140deg, #243356 0%, #111c37 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 16px rgba(11, 20, 38, 0.55);
+  }
+  .caption .wordmark {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: #EDEFF5;
+  }
+  .caption .brand-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #646C84;
+    margin-top: 4px;
+  }
+  .caption h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 42px;
+    line-height: 1.05;
+    letter-spacing: -0.022em;
+    color: #EDEFF5;
+    margin: 0 0 18px;
+  }
+  .caption h2 em {
+    font-style: italic;
+    color: #9FCBED;
+    font-weight: 500;
+  }
+  .caption p {
+    font-size: 15px;
+    line-height: 1.6;
+    color: #8D96AE;
+    margin: 0;
+  }
+</style>
+</head>
+<body>
+  <div class="browser-chrome">
+    <div class="titlebar">
+      <div class="traffic">
+        <span class="red"></span>
+        <span class="yellow"></span>
+        <span class="green"></span>
+      </div>
+      <div class="tabs">
+        <div class="tab">
+          <span class="fav"></span>
+          <span class="label">localhost:8080 — auth complete</span>
+        </div>
+      </div>
+    </div>
+    <div class="url-toolbar">
+      <div class="nav-btns"><span>‹</span><span>›</span><span>⟳</span></div>
+      <div class="url">
+        <span class="lock">🔒</span>
+        <span class="host">localhost:8080</span>
+        <span class="path">/oauth/callback?code=&hellip;</span>
+      </div>
+      <div class="ext-icons">
+        <div class="ext"></div>
+        <div class="ext"></div>
+        <div class="ext cc" title="Click Custodian">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="#9FCBED" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4l6 16 2-7 7-2z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="popup-anchor">
+    <img class="popup-shot" src="/assets/popup.png" alt="">
+  </div>
+
+  <div class="caption">
+    <div class="brand">
+      <div class="logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+             stroke="#9FCBED" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="wordmark">Click Custodian</div>
+        <div class="brand-sub">Chrome Extension</div>
+      </div>
+    </div>
+    <h2>One glance, <em>one click</em> away.</h2>
+    <p>The popup shows enabled-rule counts, a shortcut into Settings, and a one-tap test on the current tab. Always reachable from the toolbar.</p>
+  </div>
+</body>
+</html>
