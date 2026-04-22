@@ -2,6 +2,10 @@
   <img src="assets/hero.png" alt="Click Custodian intercepts an OAuth callback tab with a three-second countdown overlay" width="820">
 </p>
 
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/lonioabaehhlfdbpaidlfbhjlofldfpl/">Chrome Web Store</a> · <a href="https://addons.mozilla.org/en-US/firefox/addon/click-custodian/">Firefox Add-ons</a>
+</p>
+
 # Click Custodian
 
 Chrome extension that auto-closes confirmation tabs and auto-clicks repetitive buttons.
