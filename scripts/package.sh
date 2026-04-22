@@ -76,7 +76,9 @@ rm -rf assets/
 # directory). package.sh itself also lives here and is dev-only.
 rm -rf scripts/
 # dist/ holds the publishable zips themselves — must not be inside them.
-rm -rf dist/
+# Use the absolute path so a future refactor that drops the `cd "$TEMP_DIR"`
+# can't accidentally nuke the real dist/ at the project root.
+rm -rf "$TEMP_DIR/dist"
 
 CHROME_ZIP="click-custodian-chrome-v$VERSION.zip"
 FIREFOX_ZIP="click-custodian-firefox-v$VERSION.zip"
