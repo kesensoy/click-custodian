@@ -114,8 +114,8 @@ Issues and pull requests welcome. For substantial changes, open an issue first s
 ## Acknowledgments
 
 Major contributions from:
-- [@EthanJStark](https://github.com/EthanJStark) — core feature work, conflict resolution, testing
-- [@n0n0x](https://github.com/n0n0x) — bug fixes and polish
+- [@EthanJStark](https://github.com/EthanJStark)
+- [@n0n0x](https://github.com/n0n0x)
 
 ## License
 
