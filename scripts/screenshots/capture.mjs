@@ -100,6 +100,13 @@ const CWS_TEMPLATES = [
     out: path.join(ASSETS_DIR, 'cws-screenshot.png'),
   },
   {
+    label: 'cws-hero',
+    html: 'scripts/screenshots/cws-hero.html',
+    width: 1280,
+    height: 800,
+    out: path.join(ASSETS_DIR, 'cws-hero.png'),
+  },
+  {
     label: 'cws-promo-small',
     html: 'scripts/screenshots/cws-promo-small.html',
     width: 440,
@@ -448,6 +455,44 @@ async function captureExtension() {
       'settings'
     );
     await settingsPage.close();
+
+    // Settings, CWS-spec variant: 1280x800 at DSF=1 (no retina), saved
+    // separately so we keep the 820-tall retina version for the README
+    // and a literal-pixel version that matches the CWS screenshot slot
+    // exactly. Then alpha-strip via sips so CWS's 24-bit-PNG validator
+    // accepts it (mirrors captureCwsTemplates() above).
+    const cwsSettingsPage = await context.newPage();
+    await cwsSettingsPage.setViewportSize({ width: 1280, height: 800 });
+    await cwsSettingsPage.goto(`chrome-extension://${extId}/options.html`, {
+      waitUntil: 'networkidle',
+      timeout: 15000,
+    });
+    await cwsSettingsPage
+      .waitForSelector('#close-user-list .rule-row, #close-user-list [data-rule-id]', {
+        timeout: 5000,
+      })
+      .catch(() => console.warn('[screenshots:cws-settings] rule rows never appeared — proceeding'));
+    await cwsSettingsPage.waitForTimeout(600);
+    const cwsSettingsAlpha = path.join(ASSETS_DIR, 'cws-settings.alpha.png');
+    const cwsSettingsOut = path.join(ASSETS_DIR, 'cws-settings.png');
+    await cwsSettingsPage.screenshot({
+      path: cwsSettingsAlpha,
+      type: 'png',
+      clip: { x: 0, y: 0, width: 1280, height: 800 },
+    });
+    const r = spawnSync('sips', ['-s', 'format', 'png', cwsSettingsAlpha, '--out', cwsSettingsOut], {
+      stdio: 'pipe',
+    });
+    if (r.status !== 0) {
+      throw new Error(
+        `[screenshots:cws-settings] sips failed: ${r.stderr?.toString() ?? ''}`
+      );
+    }
+    await fs.unlink(cwsSettingsAlpha);
+    console.log(
+      `[screenshots:cws-settings] wrote ${path.relative(REPO_ROOT, cwsSettingsOut)} (1280x800, alpha-stripped)`
+    );
+    await cwsSettingsPage.close();
   } finally {
     await context.close();
   }
