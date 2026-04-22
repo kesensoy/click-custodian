@@ -53,3 +53,9 @@ icons/proposed/
 # Personal rule set exported from the extension — kept locally for
 # re-importing across machines, never committed.
 my-rules.json
+
+# Ad-hoc debug screenshots from chrome-devtools MCP / manual probes —
+# manual-tests/ itself is committed (contains real test fixtures), but
+# the screenshots/ subdir is for ephemeral captures that pile up
+# during investigations.
+manual-tests/screenshots/
