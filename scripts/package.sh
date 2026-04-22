@@ -107,6 +107,10 @@ import json
 with open('manifest.json') as f: m = json.load(f)
 sw = m['background']['service_worker']
 m['background']['scripts'] = ['debug.js', sw]
+# Firefox ignores background.service_worker and AMO emits a warning
+# when it sees the key. Remove it from the Firefox-only manifest so
+# only the scripts[] path remains.
+del m['background']['service_worker']
 with open('manifest.json', 'w') as f: json.dump(m, f, indent=2)
 "
 
