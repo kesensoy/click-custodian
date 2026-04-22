@@ -105,7 +105,6 @@
 
   /* TIMELINE STRIP */
   .strip {
-    flex: 1;
     position: relative;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -113,13 +112,17 @@
     z-index: 2;
   }
 
-  /* The horizontal thread running through the bottom of the frames */
+  /* The horizontal thread running through the bottom of the frames.
+     bottom must match the dots' center Y: .frame::after sits at
+     bottom:46px and is then translated by 50% of its own 12px height,
+     putting its center at 46px from the frame bottom. The thread
+     therefore lives at 46px too so the dots sit on it cleanly. */
   .strip::before {
     content: '';
     position: absolute;
     left: 2%;
     right: 2%;
-    bottom: 52px;
+    bottom: 46px;
     height: 1px;
     background: linear-gradient(90deg,
       transparent 0%,
