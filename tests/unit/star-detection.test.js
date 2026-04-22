@@ -21,7 +21,9 @@ const STAR_FORM_SELECTOR = [
 
 function isVisiblyRendered(el) {
   for (let node = el; node && node !== document; node = node.parentElement) {
-    if (window.getComputedStyle(node).display === 'none') return false;
+    if (node.hidden) return false;
+    const cs = window.getComputedStyle(node);
+    if (cs.display === 'none' || cs.visibility === 'hidden') return false;
   }
   return true;
 }
@@ -126,6 +128,26 @@ describe('star detection — form selector', () => {
       </div>
     `);
     expect(isStarred()).toBe(true);
+  });
+
+  test('treats the [hidden] attribute as not-rendered (defense in depth)', () => {
+    // GitHub uses display:none today, but [hidden] is the semantic
+    // equivalent and they could swap to it without warning.
+    setBodyHTML(`
+      <div hidden>
+        <form action="${REPO_PATH}/unstar" method="post"><button>Unstar</button></form>
+      </div>
+    `);
+    expect(isStarred()).toBe(false);
+  });
+
+  test('treats visibility:hidden ancestors as not-rendered (defense in depth)', () => {
+    setBodyHTML(`
+      <div style="visibility:hidden;">
+        <form action="${REPO_PATH}/unstar" method="post"><button>Unstar</button></form>
+      </div>
+    `);
+    expect(isStarred()).toBe(false);
   });
 
   test('any display:none anywhere in the ancestor chain hides the form', () => {

@@ -127,7 +127,7 @@ Bundled in `seed-examples.json`, loaded once on first install:
 3. AWS CLI OAuth Callback: `*://127.0.0.1:*/oauth/callback*` (glob, 3s delay)
 
 **Button Click Rules:**
-1. Microsoft SSO Approval: `https://login.microsoftonline.com/*/SAS/ProcessAuth*` (glob, selector `input[type="submit"]`, buttonText "Yes", 200ms delay) — pairs with the Azure AD device-code tab-close rule above to cover the full Microsoft device-code flow.
+(none shipped — users add their own)
 
 Users can delete seeded rules at any time; they are not restored on update. The "Reset to defaults" button reloads the seed destructively.
 

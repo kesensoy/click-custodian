@@ -35,10 +35,14 @@ debugLog('DEBUG', 'Click Custodian content script loaded on:', window.location.h
     `form[action^="https://github.com${REPO_PATH}/unstar?"]`,
   ].join(', ');
   const isVisiblyRendered = (el) => {
-    // Walk the ancestor chain — display:none anywhere up the tree hides
-    // the element. Cheaper and more portable than getBoundingClientRect.
+    // Walk the ancestor chain — anything that hides the element kills the
+    // signal. display:none is the current GitHub mechanism; the [hidden]
+    // attribute and visibility:hidden are cheap defense-in-depth in case
+    // they ever change shape.
     for (let node = el; node && node !== document; node = node.parentElement) {
-      if (window.getComputedStyle(node).display === 'none') return false;
+      if (node.hidden) return false;
+      const cs = window.getComputedStyle(node);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return false;
     }
     return true;
   };

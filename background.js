@@ -58,17 +58,10 @@ async function seedFromExamples() {
       tabCloseRules,
       buttonClickRules
     });
-    console.log('[DEBUG] Seeded from seed-examples.json');
-    console.log('[CC_PROBE]', 'install_seed', JSON.stringify({
-      tabCloseCount: tabCloseRules.length,
-      buttonClickCount: buttonClickRules.length
-    }));
+    debugLog('DEBUG', 'Seeded from seed-examples.json');
   } catch (error) {
-    console.error('[DEBUG] Failed to seed:', error);
+    debugError('DEBUG', 'Failed to seed:', error);
     await chrome.storage.sync.set({ tabCloseRules: [], buttonClickRules: [] });
-    console.log('[CC_PROBE]', 'install_seed_failed', JSON.stringify({
-      error: String(error)
-    }));
   }
 }
 
@@ -76,7 +69,6 @@ async function migrateLegacyShape() {
   const storage = await chrome.storage.sync.get(null);
   if (Array.isArray(storage.tabCloseRules) && Array.isArray(storage.buttonClickRules)
       && !storage.defaultRules && !storage.userRules) {
-    console.log('[CC_PROBE]', 'update_migrate_skip', JSON.stringify({}));
     return;
   }
 
@@ -84,36 +76,19 @@ async function migrateLegacyShape() {
   const defaults = storage.defaultRules || { tabCloseRules: [], buttonClickRules: [] };
   const users = storage.userRules || { tabCloseRules: [], buttonClickRules: [] };
 
-  const defaultTabClose = defaults.tabCloseRules || [];
-  const defaultButtonClick = defaults.buttonClickRules || [];
-  const userTabClose = users.tabCloseRules || [];
-  const userButtonClick = users.buttonClickRules || [];
-
   const activeDefaults = {
-    tabCloseRules: defaultTabClose.filter(r => enabled[r.id] !== false),
-    buttonClickRules: defaultButtonClick.filter(r => enabled[r.id] !== false)
+    tabCloseRules: (defaults.tabCloseRules || []).filter(r => enabled[r.id] !== false),
+    buttonClickRules: (defaults.buttonClickRules || []).filter(r => enabled[r.id] !== false)
   };
 
-  const keptDefaults = activeDefaults.tabCloseRules.length + activeDefaults.buttonClickRules.length;
-  const totalDefaults = defaultTabClose.length + defaultButtonClick.length;
-  const droppedDefaults = totalDefaults - keptDefaults;
-  const userRules = userTabClose.length + userButtonClick.length;
-
   const flat = {
-    tabCloseRules: [...activeDefaults.tabCloseRules, ...userTabClose],
-    buttonClickRules: [...activeDefaults.buttonClickRules, ...userButtonClick]
+    tabCloseRules: [...activeDefaults.tabCloseRules, ...(users.tabCloseRules || [])],
+    buttonClickRules: [...activeDefaults.buttonClickRules, ...(users.buttonClickRules || [])]
   };
 
   await chrome.storage.sync.set(flat);
   await chrome.storage.sync.remove(['defaultRules', 'userRules', 'defaultRulesEnabled', 'defaultsVersion']);
-  console.log('[DEBUG] Migrated legacy storage shape to flat');
-  console.log('[CC_PROBE]', 'update_migrate_done', JSON.stringify({
-    droppedDefaults,
-    keptDefaults,
-    userRules,
-    resultTabClose: flat.tabCloseRules.length,
-    resultButtonClick: flat.buttonClickRules.length
-  }));
+  debugLog('DEBUG', 'Migrated legacy storage shape to flat');
 }
 
 // Monitor tab updates

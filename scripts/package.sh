@@ -15,8 +15,14 @@ set -e
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-VERSION=$(grep '"version"' manifest.json | sed 's/.*: "\(.*\)".*/\1/')
+VERSION=$(python3 -c 'import json; print(json.load(open("manifest.json"))["version"])')
+[[ -n "$VERSION" ]] || { echo "❌ Could not read version from manifest.json"; exit 1; }
 echo "📦 Packaging Click Custodian v$VERSION..."
+
+# Clean any prior-run artifacts at PROJECT_ROOT *before* the cp -r so they
+# don't get copied into the temp tree (cleaned again from there too, but
+# this avoids the round trip and makes the invariant explicit).
+find . -maxdepth 1 -name "click-custodian-*.zip" -delete
 
 if [ ! -f "icons/icon16.png" ] || [ ! -f "icons/icon48.png" ] || [ ! -f "icons/icon128.png" ]; then
     echo "⚠️  Warning: Icon files not found in icons/ directory."
@@ -34,7 +40,11 @@ cp -r . "$TEMP_DIR/"
 cd "$TEMP_DIR"
 echo "🧹 Stripping dev-only files..."
 
-rm -rf .git .gitignore .DS_Store
+# Recursive .DS_Store strip — top-level rm misses nested ones (e.g.
+# icons/.DS_Store) that macOS sprinkles around.
+find . -name .DS_Store -delete
+
+rm -rf .git .gitignore
 rm -rf .claude .mcp.json
 rm -f package.json package-lock.json
 rm -f playwright.config.js jest.config.js
@@ -77,11 +87,17 @@ zip -rq "$PROJECT_ROOT/$CHROME_ZIP" . -x "*.DS_Store" -x "__MACOSX/*"
 # in MV3 — that's why we keep src manifest Chrome-clean and only patch
 # in the temp tree for the Firefox zip.
 echo "🦊 Patching manifest for Firefox (adding background.scripts)..."
+# debug.js MUST come first in scripts[]: background.js does
+# importScripts('debug.js') which is a service-worker global. If Firefox
+# ever falls through to the scripts[] code path (e.g. drops service_worker
+# support in a future release), the importScripts call would throw
+# ReferenceError. Listing debug.js explicitly here means it's already
+# loaded as a sibling script before background.js executes.
 python3 -c "
 import json
 with open('manifest.json') as f: m = json.load(f)
 sw = m['background']['service_worker']
-m['background']['scripts'] = [sw]
+m['background']['scripts'] = ['debug.js', sw]
 with open('manifest.json', 'w') as f: json.dump(m, f, indent=2)
 "
 
