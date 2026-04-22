@@ -25,5 +25,16 @@
       "delay": 3000
     }
   ],
-  "buttonClickRules": []
+  "buttonClickRules": [
+    {
+      "id": "seed-microsoft-sso-processauth",
+      "name": "Microsoft SSO Approval",
+      "urlPattern": "https://login.microsoftonline.com/*/SAS/ProcessAuth*",
+      "matchType": "glob",
+      "selector": "input[type=\"submit\"]",
+      "buttonText": "Yes",
+      "enabled": true,
+      "delay": 200
+    }
+  ]
 }
