@@ -34,6 +34,9 @@ if [ ! -f "icons/icon16.png" ] || [ ! -f "icons/icon48.png" ] || [ ! -f "icons/i
 fi
 
 TEMP_DIR=$(mktemp -d)
+# set -e + a failure between mktemp and the explicit rm at the end would
+# leak the temp tree to /tmp. Trap unconditionally cleans up on exit.
+trap 'rm -rf "$TEMP_DIR"' EXIT
 echo "📁 Staging in: $TEMP_DIR"
 cp -r . "$TEMP_DIR/"
 
@@ -105,12 +108,11 @@ echo "📦 Creating $FIREFOX_ZIP (Firefox — dual background keys)..."
 zip -rq "$PROJECT_ROOT/$FIREFOX_ZIP" . -x "*.DS_Store" -x "__MACOSX/*"
 
 cd "$PROJECT_ROOT"
-rm -rf "$TEMP_DIR"
 
 # Source zip: only the files git tracks, so gitignored junk and local
-# work like my-rules.json never make it in.
+# work like my-rules.json never make it in. Pre-cleanup happens at the
+# top of the script, so no need to rm here.
 echo "📦 Creating $SOURCE_ZIP (source for AMO review)..."
-rm -f "$SOURCE_ZIP"
 git ls-files | zip -q -@ "$SOURCE_ZIP"
 
 echo ""
