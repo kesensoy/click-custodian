@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/hero-alt/option-a.png" alt="Click Custodian intercepts an OAuth callback tab with a three-second countdown overlay" width="820">
+  <img src="assets/hero.png" alt="Click Custodian intercepts an OAuth callback tab with a three-second countdown overlay" width="820">
 </p>
 
 # Click Custodian
@@ -42,10 +42,6 @@ The seed is defined in `seed-examples.json` and only runs on first install. Upda
 
 ## Usage
 
-<p align="center">
-  <img src="assets/hero-alt/option-c.png" alt="Four-frame timeline: tab opens, overlay lands, tab closes, terminal resumes with aws sso login complete" width="820">
-</p>
-
 ### Tab Close Rules
 
 Automatically close tabs whose URL matches a pattern, after a short countdown.
@@ -77,10 +73,6 @@ Automatically click a button on matching pages.
 
 ## Configuration
 
-<p align="center">
-  <img src="assets/hero-alt/option-b.png" alt="Click Custodian's rules shown as a rules.json document — declarative, keyboard-driven, syncs across browsers" width="820">
-</p>
-
 All rules live in a single flat list on the Settings page. Every rule has the same card — toggle, edit, delete. There is no separate "built-in" tier; the examples you see on a fresh install are ordinary rules seeded once.
 
 <p align="center">
@@ -105,76 +97,15 @@ The sticky action bar on the Settings page has **Import**, **Export**, and **Res
 
 Use Export/Import to sync between machines or share a rule set.
 
-### Changing the Seed (for forks)
-
-Edit `seed-examples.json` and reload the extension. The seed only runs on fresh install, so existing users won't see the change — use **Reset to defaults** to re-seed an installed copy during development.
-
-## Architecture
-
-```
-background.js (service worker)
-├─ Seeds from seed-examples.json on fresh install
-├─ Migrates legacy two-tier shape on update (one-time)
-├─ Monitors chrome.tabs.onUpdated
-├─ Matches URLs against the flat rule list
-├─ Handles conflicts when both a close and click rule match
-├─ Injects countdown for tab close
-└─ Sends messages to content.js for button clicks
-
-content.js (content script)
-├─ Receives button click messages
-├─ Uses waitForElement() to poll for button (max 3s)
-├─ Shows green highlight when found
-└─ Clicks after configured delay
-
-options.js (settings UI)
-├─ Renders the flat rule list (all editable)
-├─ Import / Export / Reset to defaults
-└─ Saves to Chrome sync storage
-```
-
-## Storage Schema
-
-```javascript
-chrome.storage.sync = {
-  tabCloseRules: [...],     // All tab-close rules (user-owned)
-  buttonClickRules: [...]   // All button-click rules (user-owned)
-}
-```
-
-Each rule carries its own `enabled` flag — toggling a rule in the UI flips the flag on the rule object, not a separate map.
-
 ## Development
 
 No build step. Vanilla JavaScript loaded directly.
 
-**Tests:**
 ```bash
 npm run test:unit       # Jest unit tests
 npm run test:e2e        # Playwright end-to-end
-npm run test:all        # Both
+npm run screenshots     # Regenerate assets/*.png
 ```
-
-**Screenshots (for README / store listings):**
-```bash
-npm run screenshots     # Regenerates assets/*.png
-```
-
-See [`scripts/screenshots/README.md`](scripts/screenshots/README.md) for how the pipeline works.
-
-**Debugging:**
-- Background worker: `chrome://extensions/` → click **service worker**
-- Content scripts: DevTools → Console on the target page
-- Look for `[DEBUG]` log prefixes
-
-## Troubleshooting
-
-| Symptom | Likely Cause | Fix |
-|---|---|---|
-| Rules not triggering | Rule disabled, or cached content script | Check toggle state; close and reopen the test tab |
-| Button never clicked | Wrong selector or wrong button text | Inspect the element; confirm selector and text |
-| Extension stuck on old version | Chrome cache | Remove and re-load unpacked |
-| Button found, never clicked | Content script cached from earlier install | Close and reopen the target tab |
 
 ## Contributing
 

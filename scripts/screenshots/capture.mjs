@@ -2,6 +2,7 @@
 // Regenerates the committed screenshot assets in ../../assets/:
 //
 //   README / GitHub (retina @ DSF=2):
+//     hero.png            — top-of-README hero (countdown intercept shot)
 //     comparison.png      — narrower before/after for README inline use
 //     overlay.png         — the real countdown overlay on a mock host page
 //     highlight.png       — green button-highlight indicator on a mock SSO page
@@ -51,6 +52,13 @@ const PORT = 8766;
 // README / GitHub assets — captured at DSF=2 so they stay sharp when the
 // browser scales them down via the `width="…"` attr in README.md.
 const TEMPLATES = [
+  {
+    label: 'hero',
+    html: 'scripts/screenshots/hero.html',
+    width: 1280,
+    height: 640,
+    out: path.join(ASSETS_DIR, 'hero.png'),
+  },
   {
     label: 'comparison',
     html: 'scripts/screenshots/comparison.html',
