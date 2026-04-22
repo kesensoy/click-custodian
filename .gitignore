@@ -49,3 +49,7 @@ icons/proposed/
 
 # Screenshot capture profile (ephemeral, regenerated each run)
 .screenshot-profile/
+
+# Personal rule set exported from the extension — kept locally for
+# re-importing across machines, never committed.
+my-rules.json
