@@ -60,6 +60,13 @@ const TEMPLATES = [
     out: path.join(ASSETS_DIR, 'hero.png'),
   },
   {
+    label: 'popup-context',
+    html: 'scripts/screenshots/cws-popup-context.html',
+    width: 1280,
+    height: 800,
+    out: path.join(ASSETS_DIR, 'popup-context.png'),
+  },
+  {
     label: 'comparison',
     html: 'scripts/screenshots/comparison.html',
     width: 1200,
