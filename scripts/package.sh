@@ -19,10 +19,12 @@ VERSION=$(python3 -c 'import json; print(json.load(open("manifest.json"))["versi
 [[ -n "$VERSION" ]] || { echo "❌ Could not read version from manifest.json"; exit 1; }
 echo "📦 Packaging Click Custodian v$VERSION..."
 
-# Clean any prior-run artifacts at PROJECT_ROOT *before* the cp -r so they
-# don't get copied into the temp tree (cleaned again from there too, but
-# this avoids the round trip and makes the invariant explicit).
-find . -maxdepth 1 -name "click-custodian-*.zip" -delete
+# Build outputs live in dist/. Mirrors sneetches' pattern: prior-version
+# zips accumulate (audit trail of what was actually submitted to stores)
+# rather than getting wiped on each run. Same-version zips are overwritten
+# by the zip command later.
+DIST_DIR="$PROJECT_ROOT/dist"
+mkdir -p "$DIST_DIR"
 
 if [ ! -f "icons/icon16.png" ] || [ ! -f "icons/icon48.png" ] || [ ! -f "icons/icon128.png" ]; then
     echo "⚠️  Warning: Icon files not found in icons/ directory."
@@ -73,15 +75,17 @@ rm -rf assets/
 # to external CDNs (the runtime extension uses the bundled fonts/
 # directory). package.sh itself also lives here and is dev-only.
 rm -rf scripts/
-# Build artifacts from prior runs of this script.
-rm -f click-custodian-*.zip
+# dist/ holds the publishable zips themselves — must not be inside them.
+rm -rf dist/
 
 CHROME_ZIP="click-custodian-chrome-v$VERSION.zip"
 FIREFOX_ZIP="click-custodian-firefox-v$VERSION.zip"
 SOURCE_ZIP="click-custodian-source-v$VERSION.zip"
 
 echo "📦 Creating $CHROME_ZIP (Chrome — manifest as-is)..."
-zip -rq "$PROJECT_ROOT/$CHROME_ZIP" . -x "*.DS_Store" -x "__MACOSX/*"
+# Overwrite same-version output (zip's default would append).
+rm -f "$DIST_DIR/$CHROME_ZIP"
+zip -rq "$DIST_DIR/$CHROME_ZIP" . -x "*.DS_Store" -x "__MACOSX/*"
 
 # Firefox patch: AMO's static validator rejects MV3 manifests that only
 # declare background.service_worker, even though Firefox 128+'s runtime
@@ -105,20 +109,21 @@ with open('manifest.json', 'w') as f: json.dump(m, f, indent=2)
 "
 
 echo "📦 Creating $FIREFOX_ZIP (Firefox — dual background keys)..."
-zip -rq "$PROJECT_ROOT/$FIREFOX_ZIP" . -x "*.DS_Store" -x "__MACOSX/*"
+rm -f "$DIST_DIR/$FIREFOX_ZIP"
+zip -rq "$DIST_DIR/$FIREFOX_ZIP" . -x "*.DS_Store" -x "__MACOSX/*"
 
 cd "$PROJECT_ROOT"
 
 # Source zip: only the files git tracks, so gitignored junk and local
-# work like my-rules.json never make it in. Pre-cleanup happens at the
-# top of the script, so no need to rm here.
+# work like my-rules.json never make it in.
 echo "📦 Creating $SOURCE_ZIP (source for AMO review)..."
-git ls-files | zip -q -@ "$SOURCE_ZIP"
+rm -f "$DIST_DIR/$SOURCE_ZIP"
+git ls-files | zip -q -@ "$DIST_DIR/$SOURCE_ZIP"
 
 echo ""
-echo "✅ Done. Three zips at project root:"
-ls -lh click-custodian-chrome-v$VERSION.zip click-custodian-firefox-v$VERSION.zip click-custodian-source-v$VERSION.zip | awk '{print "   "$NF, "("$5")"}'
+echo "✅ Done. Three zips in dist/:"
+( cd "$DIST_DIR" && ls -lh "$CHROME_ZIP" "$FIREFOX_ZIP" "$SOURCE_ZIP" | awk '{print "   dist/"$NF, "("$5")"}' )
 echo ""
 echo "📋 Next steps:"
-echo "   • Chrome Web Store: upload $CHROME_ZIP"
-echo "   • Firefox AMO:      upload $FIREFOX_ZIP (+ $SOURCE_ZIP if asked)"
+echo "   • Chrome Web Store: upload dist/$CHROME_ZIP"
+echo "   • Firefox AMO:      upload dist/$FIREFOX_ZIP (+ dist/$SOURCE_ZIP if asked)"

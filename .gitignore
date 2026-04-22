@@ -9,7 +9,7 @@ Thumbs.db
 # Node modules (if you add build tools later)
 node_modules/
 
-# Build outputs
+# Build outputs (publishable zips land in dist/, see scripts/package.sh)
 dist/
 build/
 
