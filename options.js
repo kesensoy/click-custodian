@@ -16,6 +16,7 @@ let currentTheme = (() => {
 })();
 let currentPalette = document.documentElement.getAttribute('data-palette') || 'navy';
 let pendingImport = null;
+let pendingPlan = null;
 
 const VALID_PALETTES = ['navy', 'moss', 'graphite', 'ember'];
 const VALID_THEMES = ['light', 'dark', 'auto'];
@@ -357,6 +358,10 @@ function attachGlobalListeners() {
   document.getElementById('import-cancel').addEventListener('click', closeImportDialog);
   document.getElementById('import-merge').addEventListener('click', () => commitImport('merge'));
   document.getElementById('import-replace').addEventListener('click', () => commitImport('replace'));
+  document.getElementById('import-conflict-cancel').addEventListener('click', closeImportDialog);
+  document.getElementById('import-conflict-apply').addEventListener('click', applyConflictPlan);
+  document.getElementById('import-bulk-skip').addEventListener('click', () => setAllResolutions('skip'));
+  document.getElementById('import-bulk-overwrite').addEventListener('click', () => setAllResolutions('overwrite'));
   document.getElementById('import-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'import-overlay') closeImportDialog();
   });
@@ -611,32 +616,194 @@ function openImportDialog(imported) {
 }
 
 function closeImportDialog() {
-  document.getElementById('import-overlay').classList.remove('open');
+  const overlay = document.getElementById('import-overlay');
+  overlay.classList.remove('open');
+  document.getElementById('import-card').classList.remove('is-conflict');
+  document.getElementById('import-choice-view').hidden = false;
+  document.getElementById('import-conflict-view').hidden = true;
+  document.getElementById('import-title').textContent = 'Import rules';
   pendingImport = null;
+  pendingPlan = null;
+}
+
+// A1 dedup signature:
+// - tab-close: matchType + urlPattern
+// - button-click: matchType + urlPattern + selector + buttonText
+function conflictKey(rule, kind) {
+  const base = `${rule.matchType || 'glob'} ${rule.urlPattern || ''}`;
+  if (kind === 'buttonClick') {
+    return `${base} ${rule.selector || ''} ${rule.buttonText || ''}`;
+  }
+  return base;
+}
+
+function buildConflictPlan(imported, existing) {
+  const conflicts = [];
+  const additions = { tabCloseRules: [], buttonClickRules: [] };
+  const existingKeys = {
+    tabClose: new Map(existing.tabCloseRules.map(r => [conflictKey(r, 'tabClose'), r])),
+    buttonClick: new Map(existing.buttonClickRules.map(r => [conflictKey(r, 'buttonClick'), r]))
+  };
+  for (const r of imported.tabCloseRules) {
+    const k = conflictKey(r, 'tabClose');
+    if (existingKeys.tabClose.has(k)) {
+      conflicts.push({ kind: 'tabClose', existing: existingKeys.tabClose.get(k), incoming: r, resolution: 'skip' });
+    } else {
+      additions.tabCloseRules.push(r);
+    }
+  }
+  for (const r of imported.buttonClickRules) {
+    const k = conflictKey(r, 'buttonClick');
+    if (existingKeys.buttonClick.has(k)) {
+      conflicts.push({ kind: 'buttonClick', existing: existingKeys.buttonClick.get(k), incoming: r, resolution: 'skip' });
+    } else {
+      additions.buttonClickRules.push(r);
+    }
+  }
+  return { conflicts, additions };
 }
 
 function commitImport(mode) {
   if (!pendingImport) return;
-  if (mode === 'merge') {
-    const reIded = {
-      tabCloseRules: pendingImport.tabCloseRules.map(r => ({ ...r, id: generateId() })),
-      buttonClickRules: pendingImport.buttonClickRules.map(r => ({ ...r, id: generateId() }))
-    };
-    rules.tabCloseRules.push(...reIded.tabCloseRules);
-    rules.buttonClickRules.push(...reIded.buttonClickRules);
-  } else if (mode === 'replace') {
+  if (mode === 'replace') {
     const existingTotal = rules.tabCloseRules.length + rules.buttonClickRules.length;
     if (existingTotal > 0) {
       if (!confirm(`This deletes your ${existingTotal} existing rule${existingTotal === 1 ? '' : 's'}. Continue?`)) return;
     }
     rules.tabCloseRules = pendingImport.tabCloseRules;
     rules.buttonClickRules = pendingImport.buttonClickRules;
+    finishImport('replaced');
+    return;
   }
+  // mode === 'merge'
+  const plan = buildConflictPlan(pendingImport, rules);
+  if (plan.conflicts.length === 0) {
+    appendAdditions(plan.additions);
+    finishImport('merged', { added: plan.additions.tabCloseRules.length + plan.additions.buttonClickRules.length });
+    return;
+  }
+  pendingPlan = plan;
+  showConflictView(plan);
+}
+
+function appendAdditions(additions) {
+  rules.tabCloseRules.push(...additions.tabCloseRules.map(r => ({ ...r, id: generateId() })));
+  rules.buttonClickRules.push(...additions.buttonClickRules.map(r => ({ ...r, id: generateId() })));
+}
+
+function finishImport(verb, counts) {
   markDirty();
   renderAll();
   refreshActiveJsonViews();
   closeImportDialog();
-  showStatus(`Rules ${mode === 'merge' ? 'merged' : 'replaced'} — remember to save`, 'success');
+  let msg = `Rules ${verb} — remember to save`;
+  if (counts) {
+    const parts = [];
+    if (counts.added != null) parts.push(`${counts.added} added`);
+    if (counts.overwritten != null) parts.push(`${counts.overwritten} overwritten`);
+    if (counts.skipped != null) parts.push(`${counts.skipped} skipped`);
+    if (parts.length) msg = `Rules ${verb} (${parts.join(', ')}) — remember to save`;
+  }
+  showStatus(msg, 'success');
+}
+
+function showConflictView(plan) {
+  document.getElementById('import-card').classList.add('is-conflict');
+  document.getElementById('import-choice-view').hidden = true;
+  document.getElementById('import-conflict-view').hidden = false;
+  document.getElementById('import-title').textContent = 'Resolve conflicts';
+  const n = plan.conflicts.length;
+  const addCount = plan.additions.tabCloseRules.length + plan.additions.buttonClickRules.length;
+  const summaryParts = [`${n} rule${n === 1 ? '' : 's'} already exist with the same trigger.`];
+  if (addCount > 0) summaryParts.push(`${addCount} new rule${addCount === 1 ? '' : 's'} will be added regardless.`);
+  document.getElementById('import-conflict-summary').textContent = summaryParts.join(' ');
+  const list = document.getElementById('import-conflict-list');
+  list.innerHTML = plan.conflicts.map((c, i) => renderConflictRow(c, i)).join('');
+}
+
+function renderConflictRow(conflict, idx) {
+  const kindLabel = conflict.kind === 'tabClose' ? 'Tab close' : 'Button click';
+  const trigger = describeTrigger(conflict.incoming, conflict.kind);
+  const existing = describeRule(conflict.existing, conflict.kind);
+  const incoming = describeRule(conflict.incoming, conflict.kind);
+  return `
+    <div class="import-conflict-row" data-idx="${idx}">
+      <div class="cc-meta">
+        <span class="cc-kind">${escapeHTML(kindLabel)}</span>
+        <span class="cc-trigger">${escapeHTML(trigger)}</span>
+      </div>
+      <div class="cc-versions">
+        <div class="cc-side cc-existing">
+          <span class="cc-label">Existing</span>
+          <span class="cc-name">${escapeHTML(existing.name)}</span>
+          <span class="cc-detail">${escapeHTML(existing.detail)}</span>
+        </div>
+        <div class="cc-side cc-incoming">
+          <span class="cc-label">Incoming</span>
+          <span class="cc-name">${escapeHTML(incoming.name)}</span>
+          <span class="cc-detail">${escapeHTML(incoming.detail)}</span>
+        </div>
+      </div>
+      <div class="cc-toggle" role="radiogroup" aria-label="${escapeHTML(kindLabel)} conflict resolution">
+        <label><input type="radio" name="cc-res-${idx}" value="skip" ${conflict.resolution === 'skip' ? 'checked' : ''}> Skip</label>
+        <label><input type="radio" name="cc-res-${idx}" value="overwrite" ${conflict.resolution === 'overwrite' ? 'checked' : ''}> Overwrite</label>
+      </div>
+    </div>`;
+}
+
+function describeTrigger(rule, kind) {
+  const mt = rule.matchType || 'glob';
+  const base = `${mt}: ${rule.urlPattern || '(no pattern)'}`;
+  if (kind === 'buttonClick') {
+    const sel = rule.selector ? ` · ${rule.selector}` : '';
+    const txt = rule.buttonText ? ` · "${rule.buttonText}"` : '';
+    return base + sel + txt;
+  }
+  return base;
+}
+
+function describeRule(rule, kind) {
+  const name = rule.name || '(unnamed)';
+  const enabled = rule.enabled === false ? 'disabled' : 'enabled';
+  const delay = `${rule.delay ?? 0}ms`;
+  const detail = kind === 'tabClose'
+    ? `${delay} countdown · ${enabled}`
+    : `${delay} delay · ${enabled}`;
+  return { name, detail };
+}
+
+function setAllResolutions(value) {
+  if (!pendingPlan) return;
+  const list = document.getElementById('import-conflict-list');
+  list.querySelectorAll('input[type="radio"]').forEach(input => {
+    input.checked = input.value === value;
+  });
+}
+
+function applyConflictPlan() {
+  if (!pendingPlan) return;
+  const list = document.getElementById('import-conflict-list');
+  pendingPlan.conflicts.forEach((c, i) => {
+    const checked = list.querySelector(`input[name="cc-res-${i}"]:checked`);
+    c.resolution = checked ? checked.value : 'skip';
+  });
+  let overwritten = 0;
+  let skipped = 0;
+  for (const c of pendingPlan.conflicts) {
+    if (c.resolution === 'overwrite') {
+      const arr = c.kind === 'tabClose' ? rules.tabCloseRules : rules.buttonClickRules;
+      const idx = arr.findIndex(r => r.id === c.existing.id);
+      if (idx >= 0) {
+        arr[idx] = { ...c.incoming, id: c.existing.id };
+        overwritten++;
+      }
+    } else {
+      skipped++;
+    }
+  }
+  appendAdditions(pendingPlan.additions);
+  const added = pendingPlan.additions.tabCloseRules.length + pendingPlan.additions.buttonClickRules.length;
+  finishImport('merged', { added, overwritten, skipped });
 }
 
 // ---------- Overlay ----------
