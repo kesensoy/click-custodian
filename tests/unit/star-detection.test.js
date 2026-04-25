@@ -9,15 +9,17 @@
 const REPO_PATH = '/kesensoy/click-custodian';
 
 /**
- * COPIED FROM content.js — the form-action selector that distinguishes
- * starred (unstar form present) from unstarred (star form present).
+ * COPIED FROM content.js — the form-action selectors and predicate that
+ * distinguish starred / unstarred / unknown.
  */
-const STAR_FORM_SELECTOR = [
-  `form[action="${REPO_PATH}/unstar"]`,
-  `form[action^="${REPO_PATH}/unstar?"]`,
-  `form[action="https://github.com${REPO_PATH}/unstar"]`,
-  `form[action^="https://github.com${REPO_PATH}/unstar?"]`,
+const buildSelector = (verb) => [
+  `form[action="${REPO_PATH}/${verb}"]`,
+  `form[action^="${REPO_PATH}/${verb}?"]`,
+  `form[action="https://github.com${REPO_PATH}/${verb}"]`,
+  `form[action^="https://github.com${REPO_PATH}/${verb}?"]`,
 ].join(', ');
+const UNSTAR_FORM_SELECTOR = buildSelector('unstar');
+const STAR_FORM_SELECTOR = buildSelector('star');
 
 function isVisiblyRendered(el) {
   for (let node = el; node && node !== document; node = node.parentElement) {
@@ -28,9 +30,19 @@ function isVisiblyRendered(el) {
   return true;
 }
 
+const anyVisible = (selector) =>
+  Array.from(document.querySelectorAll(selector)).some(isVisiblyRendered);
+
+// Returns 'starred' | 'unstarred' | null. Mirror of content.js detectState().
+function detectState() {
+  if (anyVisible(UNSTAR_FORM_SELECTOR)) return 'starred';
+  if (anyVisible(STAR_FORM_SELECTOR)) return 'unstarred';
+  return null;
+}
+
+// Backwards-compatible boolean for the existing test suite.
 function isStarred() {
-  const forms = document.querySelectorAll(STAR_FORM_SELECTOR);
-  return Array.from(forms).some(isVisiblyRendered);
+  return detectState() === 'starred';
 }
 
 function setBodyHTML(html) {
@@ -163,6 +175,77 @@ describe('star detection — form selector', () => {
       </div>
     `);
     expect(isStarred()).toBe(false);
+  });
+});
+
+describe('star detection — bidirectional state', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  test('returns "starred" when the visible /unstar form is the rendered one', () => {
+    setBodyHTML(`
+      <div class="starred" style="display:flex;">
+        <form action="${REPO_PATH}/unstar" method="post"><button>Unstar</button></form>
+      </div>
+      <div class="unstarred" style="display:none;">
+        <form action="${REPO_PATH}/star" method="post"><button>Star</button></form>
+      </div>
+    `);
+    expect(detectState()).toBe('starred');
+  });
+
+  test('returns "unstarred" when the visible /star form is the rendered one', () => {
+    // The mirror of the starred case: this is the bidirectional signal that
+    // lets us flip hasStarred=false when the user explicitly un-stars.
+    setBodyHTML(`
+      <div class="starred" style="display:none;">
+        <form action="${REPO_PATH}/unstar" method="post"><button>Unstar</button></form>
+      </div>
+      <div class="unstarred" style="display:flex;">
+        <form action="${REPO_PATH}/star" method="post"><button>Star</button></form>
+      </div>
+    `);
+    expect(detectState()).toBe('unstarred');
+  });
+
+  test('returns null on empty DOM (header not yet rendered)', () => {
+    // null = "don't know yet, don't write" — the retry loop in content.js
+    // keeps polling until something visible appears.
+    expect(detectState()).toBe(null);
+  });
+
+  test('returns null when neither form is rendered (logged-out visitor)', () => {
+    // Logged-out users see a "Sign in to star" anchor, not a form. We must
+    // not flip a previously-true hasStarred to false just because the user
+    // is currently logged out.
+    setBodyHTML(`
+      <a href="/login?return_to=${REPO_PATH}">Sign in to star</a>
+    `);
+    expect(detectState()).toBe(null);
+  });
+
+  test('returns null when both forms exist but both are hidden', () => {
+    // Defensive: in a transitional render where GitHub hasn't decided which
+    // wrapper to show, treat it as unknown rather than guessing.
+    setBodyHTML(`
+      <div style="display:none;">
+        <form action="${REPO_PATH}/unstar" method="post"><button>Unstar</button></form>
+      </div>
+      <div style="display:none;">
+        <form action="${REPO_PATH}/star" method="post"><button>Star</button></form>
+      </div>
+    `);
+    expect(detectState()).toBe(null);
+  });
+
+  test('does not false-detect "unstarred" from a /stargazers form', () => {
+    // /stargazers/refresh is a real form on the repo page. The exact-match
+    // selectors must not pick it up as a /star form.
+    setBodyHTML(`
+      <form action="${REPO_PATH}/stargazers/refresh" method="post"></form>
+    `);
+    expect(detectState()).toBe(null);
   });
 });
 
