@@ -67,10 +67,21 @@ debugLog('DEBUG', 'Click Custodian content script loaded on:', window.location.h
     return null;
   };
 
-  const writeIfChanged = (state) => {
-    if (state === 'starred') chrome.storage.sync.set({ hasStarred: true });
-    else if (state === 'unstarred') chrome.storage.sync.set({ hasStarred: false });
+  // Pre-check storage before writing — repeated visits to the same starred
+  // repo otherwise burn writes against the 120/min sync quota for no state
+  // change. Storage is read-cheap relative to write-cheap.
+  const writeIfChanged = async (state) => {
+    const desired = state === 'starred';
+    try {
+      const stored = await chrome.storage.sync.get(['hasStarred']);
+      if (stored.hasStarred === desired) return;
+      await chrome.storage.sync.set({ hasStarred: desired });
+    } catch (e) { /* storage unavailable — silently no-op */ }
   };
+
+  // A rapid Turbo nav (Code → Issues → Code in <3s) would otherwise stack
+  // overlapping retry timers writing the same value. Track + cancel.
+  let activeRetryTimer = null;
 
   const runDetection = () => {
     if (!onRepoPage()) return;
@@ -79,16 +90,18 @@ debugLog('DEBUG', 'Click Custodian content script loaded on:', window.location.h
       writeIfChanged(initial);
       return;
     }
-    // GitHub sometimes late-renders the header widget; retry briefly.
+    if (activeRetryTimer !== null) clearInterval(activeRetryTimer);
     let attempts = 0;
-    const timer = setInterval(() => {
+    activeRetryTimer = setInterval(() => {
       attempts++;
       const state = detectState();
       if (state !== null) {
         writeIfChanged(state);
-        clearInterval(timer);
+        clearInterval(activeRetryTimer);
+        activeRetryTimer = null;
       } else if (attempts >= 6) {
-        clearInterval(timer);
+        clearInterval(activeRetryTimer);
+        activeRetryTimer = null;
       }
     }, 500);
   };

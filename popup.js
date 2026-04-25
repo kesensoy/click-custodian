@@ -142,9 +142,12 @@ function setStatus(message, type) {
 
 // Star CTA: the anchor's href takes first-time visitors to the repo;
 // content.js detects the actual starred state from GitHub's DOM and writes
-// hasStarred=true. We never set the flag from the popup (visiting !=
-// actually starring) and we suppress the navigation entirely once starred —
-// the widget becomes a "thanks" affirmation, not a re-entry point.
+// hasStarred=true (when the visible /unstar form is present) or false (when
+// the /star form is present). We never set the flag from the popup
+// (visiting != actually starring) and we suppress the navigation entirely
+// once starred — the widget becomes a "thanks" affirmation, not a re-entry
+// point. If the user un-stars on GitHub, the next popup open reverts to
+// "Star us?".
 const HAS_STARRED_KEY = 'hasStarred';
 
 async function hydrateStarCta() {
