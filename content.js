@@ -2,38 +2,48 @@
 
 debugLog('DEBUG', 'Click Custodian content script loaded on:', window.location.href);
 
-// Detect whether the visitor has starred our GitHub repo and lock "Thanks!"
-// into the popup CTA. content.js runs on <all_urls>, so the hostname +
-// pathname guard bails out cheaply before any DOM work on non-repo pages.
-// We only ever WRITE hasStarred=true: unstarring shouldn't flip the popup
-// back to "Star us?" once a user has earned the thanks.
+// Detect whether the visitor has starred our GitHub repo. content.js runs
+// on <all_urls>, so the hostname + pathname guard bails out cheaply before
+// any DOM work on non-repo pages.
 //
-// Limitation: detection runs once per page load + a brief retry for
-// late-rendered headers. Starring the repo without reloading (a turbo
-// nav or in-place click) won't flip the popup until the next page load.
+// Bidirectional: writes hasStarred=true when the /unstar form is visible
+// (user has starred) and hasStarred=false when only the /star form is
+// visible (user is logged in but hasn't starred). Logged-out visitors —
+// neither form rendered — are left alone so we don't punish someone with
+// stale "starred" state just for being logged out at the moment of detect.
+//
+// Re-runs on every visit AND on Hotwire Turbo's `turbo:load` event so
+// in-page navigation between repo subpages (Code → Issues → back) and
+// in-place star/unstar clicks both update storage without a hard reload.
 (function detectRepoStar() {
   const REPO_PATH = '/kesensoy/click-custodian';
   if (location.hostname !== 'github.com') return;
-  if (location.pathname !== REPO_PATH && !location.pathname.startsWith(REPO_PATH + '/')) return;
+
+  const onRepoPage = () =>
+    location.pathname === REPO_PATH || location.pathname.startsWith(REPO_PATH + '/');
 
   // GitHub renders BOTH the /star AND /unstar forms in the repo header at
   // the same time, regardless of starred state — they live as siblings
   // inside .starred and .unstarred wrapper divs that toggle display via
-  // CSS. So "/unstar form exists" is NOT a starred signal; we have to check
-  // that an /unstar form is actually rendered (no display:none ancestor).
+  // CSS. So "form exists" is NOT a state signal; we have to check that the
+  // form is actually rendered (no display:none ancestor). Verified live
+  // 2026-04-20 — see tests/unit/star-detection.test.js for the contract.
   //
-  // Selector matches exact relative AND exact absolute form actions
+  // Selectors match exact relative AND exact absolute form actions
   // (defense-in-depth — relative is current GH behavior but undocumented),
   // including the `?...` query-string variants. We deliberately avoid
   // `[action$=]` and `[action*=]` because either could false-match nested
   // paths like /someone-else/click-custodian/unstar or a query string
   // echoing user input — both reachable from an attacker-controlled page.
-  const STAR_FORM_SELECTOR = [
-    `form[action="${REPO_PATH}/unstar"]`,
-    `form[action^="${REPO_PATH}/unstar?"]`,
-    `form[action="https://github.com${REPO_PATH}/unstar"]`,
-    `form[action^="https://github.com${REPO_PATH}/unstar?"]`,
+  const buildSelector = (verb) => [
+    `form[action="${REPO_PATH}/${verb}"]`,
+    `form[action^="${REPO_PATH}/${verb}?"]`,
+    `form[action="https://github.com${REPO_PATH}/${verb}"]`,
+    `form[action^="https://github.com${REPO_PATH}/${verb}?"]`,
   ].join(', ');
+  const UNSTAR_FORM_SELECTOR = buildSelector('unstar');
+  const STAR_FORM_SELECTOR = buildSelector('star');
+
   const isVisiblyRendered = (el) => {
     // Walk the ancestor chain — anything that hides the element kills the
     // signal. display:none is the current GitHub mechanism; the [hidden]
@@ -46,26 +56,61 @@ debugLog('DEBUG', 'Click Custodian content script loaded on:', window.location.h
     }
     return true;
   };
-  const isStarred = () => {
-    const forms = document.querySelectorAll(STAR_FORM_SELECTOR);
-    return Array.from(forms).some(isVisiblyRendered);
+  const anyVisible = (selector) =>
+    Array.from(document.querySelectorAll(selector)).some(isVisiblyRendered);
+
+  // Returns 'starred' | 'unstarred' | null (null = signal absent: header
+  // not yet rendered, user logged out, etc.). null means "don't write."
+  const detectState = () => {
+    if (anyVisible(UNSTAR_FORM_SELECTOR)) return 'starred';
+    if (anyVisible(STAR_FORM_SELECTOR)) return 'unstarred';
+    return null;
   };
 
-  if (isStarred()) {
-    chrome.storage.sync.set({ hasStarred: true });
-    return;
-  }
-  // GitHub sometimes late-renders the header widget; retry briefly.
-  let attempts = 0;
-  const timer = setInterval(() => {
-    attempts++;
-    if (isStarred()) {
-      chrome.storage.sync.set({ hasStarred: true });
-      clearInterval(timer);
-    } else if (attempts >= 6) {
-      clearInterval(timer);
+  // Pre-check storage before writing — repeated visits to the same starred
+  // repo otherwise burn writes against the 120/min sync quota for no state
+  // change. Storage is read-cheap relative to write-cheap.
+  const writeIfChanged = async (state) => {
+    const desired = state === 'starred';
+    try {
+      const stored = await chrome.storage.sync.get(['hasStarred']);
+      if (stored.hasStarred === desired) return;
+      await chrome.storage.sync.set({ hasStarred: desired });
+    } catch (e) { /* storage unavailable — silently no-op */ }
+  };
+
+  // A rapid Turbo nav (Code → Issues → Code in <3s) would otherwise stack
+  // overlapping retry timers writing the same value. Track + cancel.
+  let activeRetryTimer = null;
+
+  const runDetection = () => {
+    if (!onRepoPage()) return;
+    const initial = detectState();
+    if (initial !== null) {
+      writeIfChanged(initial);
+      return;
     }
-  }, 500);
+    if (activeRetryTimer !== null) clearInterval(activeRetryTimer);
+    let attempts = 0;
+    activeRetryTimer = setInterval(() => {
+      attempts++;
+      const state = detectState();
+      if (state !== null) {
+        writeIfChanged(state);
+        clearInterval(activeRetryTimer);
+        activeRetryTimer = null;
+      } else if (attempts >= 6) {
+        clearInterval(activeRetryTimer);
+        activeRetryTimer = null;
+      }
+    }, 500);
+  };
+
+  runDetection();
+  // Turbo navigation: GitHub swaps page content without a full reload, so
+  // our IIFE wouldn't otherwise re-run. `turbo:load` fires on both the
+  // initial visit and every subsequent in-page nav.
+  document.addEventListener('turbo:load', runDetection);
 })();
 
 // Listen for messages from background script

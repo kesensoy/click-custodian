@@ -63,8 +63,9 @@ Page complete → Poll for button (max 3s) → Found? → Green highlight → Wa
 
 **GitHub Star Detection (`detectRepoStar()` IIFE at top of file):**
 - Runs on every page load (content.js is `<all_urls>`); cheap hostname + pathname guard bails out before any DOM work elsewhere.
-- On `github.com/kesensoy/click-custodian/*`, polls for the `/unstar` form (up to ~3s) — its presence means the visitor has starred.
-- One-way write: only sets `hasStarred=true` in `chrome.storage.sync`. Un-starring does NOT revoke the popup's "Thanks!" state (intentional — see Star CTA section).
+- On `github.com/kesensoy/click-custodian/*`, inspects which of the `/star` and `/unstar` forms is the *visibly rendered* one (GitHub renders both with display:none toggling — verified live 2026-04-20). Up to ~3s of polling for late-rendered headers.
+- **Bidirectional write:** sets `hasStarred=true` when the unstar form is visible, `hasStarred=false` when the star form is visible. Logged-out visitors (neither form rendered) are left alone — we don't punish someone with stale state for being signed out.
+- Re-runs on Hotwire `turbo:load` so in-page navigation between repo subpages and in-place star/unstar clicks update storage without a full reload.
 
 ### Options Page (`options.js`)
 **Single Rule List:**
@@ -166,9 +167,9 @@ The palette name appears in **six** places — keep them in sync (the regression
 - On next popup open, hydrate adds `.starred` to the CTA: gold color, "Thanks!" label.
 - Click in starred state: `preventDefault()` stops navigation, icon spins as click feedback. The widget becomes a pure affirmation; users can't accidentally land on a repo state that disagrees with the popup.
 
-**Why one-way:** un-starring should not flip the popup back to "Star us?" — that would feel punishing and the user already earned the thanks.
+**Bidirectional `hasStarred`:** if the user un-stars the repo on GitHub, the next time content.js sees the page (page load OR `turbo:load`) it writes `hasStarred=false` and the next popup open reverts to "Star us?". This is the honest signal. Logged-out visits don't flip the flag — only an explicit star/unstar form being visibly rendered does.
 
-**Known limitation:** detection runs once per page load with a brief retry window for late-rendered headers. Starring the repo via in-page (turbo) navigation without a full reload won't flip the popup until the next time GitHub loads the repo page fresh. Acceptable for now since the natural flow is "click → new tab → star → close tab" anyway.
+**Toolbar icon swap:** when `hasStarred=true` AND the user has chosen a non-navy palette (moss/graphite/ember), `background.js:applyIconForCurrentState()` calls `chrome.action.setIcon()` to swap to the palette-tinted icon set. Navy palette OR not-starred always shows the default brand icon. The swap re-fires on `chrome.storage.onChanged` for either the `palette` or `hasStarred` key, plus on every service-worker boot. PNG sources live in `icons/icon{16,48,128}-{moss,graphite,ember}.png`; regenerate via `bash scripts/render-icons.sh` after editing the source SVGs.
 
 ## Pattern Matching
 

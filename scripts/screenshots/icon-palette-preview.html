@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Click Custodian — palette-tinted icon preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0;
+    padding: 48px;
+    background: #0B1426;
+    color: #EDEFF5;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    color: #8D96AE;
+    margin-bottom: 40px;
+    max-width: 720px;
+    line-height: 1.55;
+  }
+  .sub code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    background: rgba(159,203,237,0.08);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: #9FCBED;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 120px repeat(5, 1fr);
+    gap: 16px;
+    align-items: center;
+    max-width: 1200px;
+  }
+  .grid > .head {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #646C84;
+    text-align: center;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #2A3556;
+  }
+  .grid > .head.size {
+    text-align: right;
+    padding-right: 16px;
+    border-bottom: none;
+    border-right: 1px solid #2A3556;
+    color: #8D96AE;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .row-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #646C84;
+    text-align: right;
+    padding-right: 16px;
+    border-right: 1px solid #2A3556;
+  }
+  .cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 0;
+  }
+  .swatch {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    vertical-align: middle;
+    margin-right: 6px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.15);
+  }
+
+  .toolbar-mock {
+    margin-top: 64px;
+    background: #1A2440;
+    border: 1px solid #2A3556;
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 1200px;
+  }
+  .toolbar-mock .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #8D96AE;
+    margin-right: 12px;
+    min-width: 88px;
+  }
+  .toolbar-mock svg {
+    border-radius: 4px;
+  }
+  .toolbar-mock .gap { width: 12px; }
+
+  .compare {
+    margin-top: 64px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    max-width: 1200px;
+  }
+  .compare .panel {
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid #2A3556;
+    background: rgba(15, 21, 39, 0.5);
+  }
+  .compare h3 {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 16px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #9FCBED;
+  }
+  .compare .row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 0;
+  }
+  .compare .row .name {
+    width: 100px;
+    color: #8D96AE;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+  <h1>Option B — palette-tinted cursor stroke</h1>
+  <div class="sub">
+    Container stays the same navy gradient on every palette (brand anchor preserved).
+    Only the cursor stroke shifts to each palette's <code>--cornflower</code> dark-mode
+    accent. Swap happens via <code>chrome.action.setIcon()</code> on
+    <code>chrome.storage.onChanged</code> for the <code>palette</code> key.
+  </div>
+
+  <div class="grid">
+    <div class="head size">size ↓ / palette →</div>
+    <div class="head"><span class="swatch" style="background:#9FCBED"></span>Navy</div>
+    <div class="head"><span class="swatch" style="background:#B8D6B1"></span>Moss</div>
+    <div class="head"><span class="swatch" style="background:#E8C468"></span>Graphite</div>
+    <div class="head"><span class="swatch" style="background:#E8A87C"></span>Ember</div>
+    <div class="head" style="opacity:0.55">Current ship</div>
+
+    <!-- 128 row -->
+    <div class="row-label">128px</div>
+    <!-- Navy -->
+    <div class="cell">
+      <svg width="128" height="128" viewBox="0 0 128 128">
+        <defs>
+          <linearGradient id="bg-n128" gradientUnits="userSpaceOnUse" x1="6" y1="-5" x2="122" y2="133">
+            <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/>
+          </linearGradient>
+        </defs>
+        <rect width="128" height="128" rx="36" ry="36" fill="url(#bg-n128)"/>
+        <svg x="19" y="19" width="90" height="90" viewBox="0 0 24 24" fill="none"
+             stroke="#9FCBED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/>
+        </svg>
+      </svg>
+    </div>
+    <!-- Moss -->
+    <div class="cell">
+      <svg width="128" height="128" viewBox="0 0 128 128">
+        <defs>
+          <linearGradient id="bg-m128" gradientUnits="userSpaceOnUse" x1="6" y1="-5" x2="122" y2="133">
+            <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/>
+          </linearGradient>
+        </defs>
+        <rect width="128" height="128" rx="36" ry="36" fill="url(#bg-m128)"/>
+        <svg x="19" y="19" width="90" height="90" viewBox="0 0 24 24" fill="none"
+             stroke="#B8D6B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/>
+        </svg>
+      </svg>
+    </div>
+    <!-- Graphite -->
+    <div class="cell">
+      <svg width="128" height="128" viewBox="0 0 128 128">
+        <defs>
+          <linearGradient id="bg-g128" gradientUnits="userSpaceOnUse" x1="6" y1="-5" x2="122" y2="133">
+            <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/>
+          </linearGradient>
+        </defs>
+        <rect width="128" height="128" rx="36" ry="36" fill="url(#bg-g128)"/>
+        <svg x="19" y="19" width="90" height="90" viewBox="0 0 24 24" fill="none"
+             stroke="#E8C468" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/>
+        </svg>
+      </svg>
+    </div>
+    <!-- Ember -->
+    <div class="cell">
+      <svg width="128" height="128" viewBox="0 0 128 128">
+        <defs>
+          <linearGradient id="bg-e128" gradientUnits="userSpaceOnUse" x1="6" y1="-5" x2="122" y2="133">
+            <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/>
+          </linearGradient>
+        </defs>
+        <rect width="128" height="128" rx="36" ry="36" fill="url(#bg-e128)"/>
+        <svg x="19" y="19" width="90" height="90" viewBox="0 0 24 24" fill="none"
+             stroke="#E8A87C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/>
+        </svg>
+      </svg>
+    </div>
+    <!-- Current ship -->
+    <div class="cell" style="opacity:0.55">
+      <svg width="128" height="128" viewBox="0 0 128 128">
+        <defs>
+          <linearGradient id="bg-c128" gradientUnits="userSpaceOnUse" x1="6" y1="-5" x2="122" y2="133">
+            <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/>
+          </linearGradient>
+        </defs>
+        <rect width="128" height="128" rx="36" ry="36" fill="url(#bg-c128)"/>
+        <svg x="19" y="19" width="90" height="90" viewBox="0 0 24 24" fill="none"
+             stroke="#7CB9E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/>
+        </svg>
+      </svg>
+    </div>
+
+    <!-- 48 row -->
+    <div class="row-label">48px</div>
+    <div class="cell">
+      <svg width="48" height="48" viewBox="0 0 128 128">
+        <defs><linearGradient id="bg-n48" gradientUnits="userSpaceOnUse" x1="6" y1="-5" x2="122" y2="133">
+          <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+        <rect width="128" height="128" rx="36" ry="36" fill="url(#bg-n48)"/>
+        <svg x="19" y="19" width="90" height="90" viewBox="0 0 24 24" fill="none"
+             stroke="#9FCBED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/></svg>
+      </svg>
+    </div>
+    <div class="cell">
+      <svg width="48" height="48" viewBox="0 0 128 128">
+        <defs><linearGradient id="bg-m48" gradientUnits="userSpaceOnUse" x1="6" y1="-5" x2="122" y2="133">
+          <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+        <rect width="128" height="128" rx="36" ry="36" fill="url(#bg-m48)"/>
+        <svg x="19" y="19" width="90" height="90" viewBox="0 0 24 24" fill="none"
+             stroke="#B8D6B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/></svg>
+      </svg>
+    </div>
+    <div class="cell">
+      <svg width="48" height="48" viewBox="0 0 128 128">
+        <defs><linearGradient id="bg-g48" gradientUnits="userSpaceOnUse" x1="6" y1="-5" x2="122" y2="133">
+          <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+        <rect width="128" height="128" rx="36" ry="36" fill="url(#bg-g48)"/>
+        <svg x="19" y="19" width="90" height="90" viewBox="0 0 24 24" fill="none"
+             stroke="#E8C468" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/></svg>
+      </svg>
+    </div>
+    <div class="cell">
+      <svg width="48" height="48" viewBox="0 0 128 128">
+        <defs><linearGradient id="bg-e48" gradientUnits="userSpaceOnUse" x1="6" y1="-5" x2="122" y2="133">
+          <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+        <rect width="128" height="128" rx="36" ry="36" fill="url(#bg-e48)"/>
+        <svg x="19" y="19" width="90" height="90" viewBox="0 0 24 24" fill="none"
+             stroke="#E8A87C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/></svg>
+      </svg>
+    </div>
+    <div class="cell" style="opacity:0.55">
+      <svg width="48" height="48" viewBox="0 0 128 128">
+        <defs><linearGradient id="bg-c48" gradientUnits="userSpaceOnUse" x1="6" y1="-5" x2="122" y2="133">
+          <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+        <rect width="128" height="128" rx="36" ry="36" fill="url(#bg-c48)"/>
+        <svg x="19" y="19" width="90" height="90" viewBox="0 0 24 24" fill="none"
+             stroke="#7CB9E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/></svg>
+      </svg>
+    </div>
+
+    <!-- 16 row -->
+    <div class="row-label">16px</div>
+    <div class="cell">
+      <svg width="16" height="16" viewBox="0 0 16 16">
+        <defs><linearGradient id="bg-n16" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+          <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+        <rect width="16" height="16" rx="4" ry="4" fill="url(#bg-n16)"/>
+        <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+             stroke="#9FCBED" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/></svg>
+      </svg>
+    </div>
+    <div class="cell">
+      <svg width="16" height="16" viewBox="0 0 16 16">
+        <defs><linearGradient id="bg-m16" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+          <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+        <rect width="16" height="16" rx="4" ry="4" fill="url(#bg-m16)"/>
+        <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+             stroke="#B8D6B1" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/></svg>
+      </svg>
+    </div>
+    <div class="cell">
+      <svg width="16" height="16" viewBox="0 0 16 16">
+        <defs><linearGradient id="bg-g16" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+          <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+        <rect width="16" height="16" rx="4" ry="4" fill="url(#bg-g16)"/>
+        <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+             stroke="#E8C468" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/></svg>
+      </svg>
+    </div>
+    <div class="cell">
+      <svg width="16" height="16" viewBox="0 0 16 16">
+        <defs><linearGradient id="bg-e16" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+          <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+        <rect width="16" height="16" rx="4" ry="4" fill="url(#bg-e16)"/>
+        <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+             stroke="#E8A87C" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/></svg>
+      </svg>
+    </div>
+    <div class="cell" style="opacity:0.55">
+      <svg width="16" height="16" viewBox="0 0 16 16">
+        <defs><linearGradient id="bg-c16" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+          <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+        <rect width="16" height="16" rx="4" ry="4" fill="url(#bg-c16)"/>
+        <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+             stroke="#7CB9E8" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l6 16 2-7 7-2z"/></svg>
+      </svg>
+    </div>
+  </div>
+
+  <div class="toolbar-mock">
+    <span class="label">In toolbar →</span>
+    <svg width="22" height="22" viewBox="0 0 16 16">
+      <defs><linearGradient id="tb-n" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+        <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+      <rect width="16" height="16" rx="4" ry="4" fill="url(#tb-n)"/>
+      <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+           stroke="#9FCBED" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4l6 16 2-7 7-2z"/></svg>
+    </svg>
+    <span class="gap"></span>
+    <svg width="22" height="22" viewBox="0 0 16 16">
+      <defs><linearGradient id="tb-m" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+        <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+      <rect width="16" height="16" rx="4" ry="4" fill="url(#tb-m)"/>
+      <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+           stroke="#B8D6B1" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4l6 16 2-7 7-2z"/></svg>
+    </svg>
+    <span class="gap"></span>
+    <svg width="22" height="22" viewBox="0 0 16 16">
+      <defs><linearGradient id="tb-g" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+        <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+      <rect width="16" height="16" rx="4" ry="4" fill="url(#tb-g)"/>
+      <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+           stroke="#E8C468" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4l6 16 2-7 7-2z"/></svg>
+    </svg>
+    <span class="gap"></span>
+    <svg width="22" height="22" viewBox="0 0 16 16">
+      <defs><linearGradient id="tb-e" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+        <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+      <rect width="16" height="16" rx="4" ry="4" fill="url(#tb-e)"/>
+      <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+           stroke="#E8A87C" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4l6 16 2-7 7-2z"/></svg>
+    </svg>
+    <span class="label" style="margin-left:24px">↑ what Chrome would actually show, side by side</span>
+  </div>
+
+  <div class="compare">
+    <div class="panel">
+      <h3>Light browser theme</h3>
+      <div class="row" style="background:#F4F6FA; padding:10px 14px; border-radius:8px;">
+        <span class="name" style="color:#646C84">Navy</span>
+        <svg width="18" height="18" viewBox="0 0 16 16">
+          <defs><linearGradient id="lt-n" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+            <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+          <rect width="16" height="16" rx="4" ry="4" fill="url(#lt-n)"/>
+          <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+               stroke="#9FCBED" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4l6 16 2-7 7-2z"/></svg>
+        </svg>
+        <svg width="18" height="18" viewBox="0 0 16 16">
+          <defs><linearGradient id="lt-m" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+            <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+          <rect width="16" height="16" rx="4" ry="4" fill="url(#lt-m)"/>
+          <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+               stroke="#B8D6B1" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4l6 16 2-7 7-2z"/></svg>
+        </svg>
+        <svg width="18" height="18" viewBox="0 0 16 16">
+          <defs><linearGradient id="lt-g" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+            <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+          <rect width="16" height="16" rx="4" ry="4" fill="url(#lt-g)"/>
+          <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+               stroke="#E8C468" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4l6 16 2-7 7-2z"/></svg>
+        </svg>
+        <svg width="18" height="18" viewBox="0 0 16 16">
+          <defs><linearGradient id="lt-e" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+            <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+          <rect width="16" height="16" rx="4" ry="4" fill="url(#lt-e)"/>
+          <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+               stroke="#E8A87C" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4l6 16 2-7 7-2z"/></svg>
+        </svg>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Dark browser theme</h3>
+      <div class="row" style="background:#1A2440; padding:10px 14px; border-radius:8px;">
+        <span class="name">Navy</span>
+        <svg width="18" height="18" viewBox="0 0 16 16">
+          <defs><linearGradient id="dk-n" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+            <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+          <rect width="16" height="16" rx="4" ry="4" fill="url(#dk-n)"/>
+          <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+               stroke="#9FCBED" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4l6 16 2-7 7-2z"/></svg>
+        </svg>
+        <svg width="18" height="18" viewBox="0 0 16 16">
+          <defs><linearGradient id="dk-m" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+            <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+          <rect width="16" height="16" rx="4" ry="4" fill="url(#dk-m)"/>
+          <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+               stroke="#B8D6B1" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4l6 16 2-7 7-2z"/></svg>
+        </svg>
+        <svg width="18" height="18" viewBox="0 0 16 16">
+          <defs><linearGradient id="dk-g" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+            <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+          <rect width="16" height="16" rx="4" ry="4" fill="url(#dk-g)"/>
+          <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+               stroke="#E8C468" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4l6 16 2-7 7-2z"/></svg>
+        </svg>
+        <svg width="18" height="18" viewBox="0 0 16 16">
+          <defs><linearGradient id="dk-e" gradientUnits="userSpaceOnUse" x1="1" y1="-1" x2="15" y2="17">
+            <stop offset="0%" stop-color="#243356"/><stop offset="100%" stop-color="#111c37"/></linearGradient></defs>
+          <rect width="16" height="16" rx="4" ry="4" fill="url(#dk-e)"/>
+          <svg x="1.5" y="1.5" width="13" height="13" viewBox="0 0 24 24" fill="none"
+               stroke="#E8A87C" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4l6 16 2-7 7-2z"/></svg>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

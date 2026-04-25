@@ -6,6 +6,49 @@ const processedTabs = new Set();
 const TAB_TRACKING_TIMEOUT = 5000; // Clear entries after 5 seconds
 const MAX_TRACKED_TABS = 100; // Emergency cleanup threshold
 
+// Toolbar icon swap: navy is the always-default brand icon. Moss / graphite /
+// ember tinted icons unlock only when the user has both starred the repo on
+// GitHub AND chosen a non-navy palette in settings. Star detection lives in
+// content.js; the palette key is set by options.js.
+const ICON_SETS = {
+  navy: {
+    16: 'icons/icon16.png', 48: 'icons/icon48.png', 128: 'icons/icon128.png',
+  },
+  moss: {
+    16: 'icons/icon16-moss.png', 48: 'icons/icon48-moss.png', 128: 'icons/icon128-moss.png',
+  },
+  graphite: {
+    16: 'icons/icon16-graphite.png', 48: 'icons/icon48-graphite.png', 128: 'icons/icon128-graphite.png',
+  },
+  ember: {
+    16: 'icons/icon16-ember.png', 48: 'icons/icon48-ember.png', 128: 'icons/icon128-ember.png',
+  },
+};
+
+async function applyIconForCurrentState() {
+  try {
+    const { palette = 'navy', hasStarred = false } = await chrome.storage.sync.get(['palette', 'hasStarred']);
+    // Tinted icon only when the user has starred AND chose a non-navy palette.
+    // Everything else (incl. starred-on-navy) shows the default brand icon.
+    const useTinted = hasStarred && palette !== 'navy' && ICON_SETS[palette];
+    const path = useTinted ? ICON_SETS[palette] : ICON_SETS.navy;
+    await chrome.action.setIcon({ path });
+  } catch (e) {
+    debugLog('DEBUG', 'Failed to apply icon for current state:', e.message);
+  }
+}
+
+// Re-apply on either storage signal flipping. MV3 service workers are
+// ephemeral, so the top-level call below also re-fires on every boot.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'sync') return;
+  if (changes.palette || changes.hasStarred) {
+    applyIconForCurrentState();
+  }
+});
+
+applyIconForCurrentState();
+
 // Emergency cleanup if Set grows too large (should never happen with timeouts)
 function checkTrackingSetSize() {
   if (processedTabs.size > MAX_TRACKED_TABS) {

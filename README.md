@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://chromewebstore.google.com/detail/lonioabaehhlfdbpaidlfbhjlofldfpl/">Chrome Web Store</a> · <a href="https://addons.mozilla.org/en-US/firefox/addon/click-custodian/">Firefox Add-ons</a>
+  <a href="https://chromewebstore.google.com/detail/click-custodian/lonioabaehhlfdbpaidlfbhjlofldfpl">Chrome Web Store</a> · <a href="https://addons.mozilla.org/en-US/firefox/addon/click-custodian/">Firefox Add-ons</a>
 </p>
 
 # Click Custodian

@@ -9,10 +9,6 @@
   <!-- Rounded square background with navy gradient (140deg, navy-700 -> navy-900) -->
   <rect x="0" y="0" width="128" height="128" rx="36" ry="36" fill="url(#bg)"/>
 
-  <!-- Subtle inset bevel lines (top highlight, bottom shadow) to mimic the CSS box-shadow -->
-  <rect x="0" y="0" width="128" height="1" fill="rgba(255,255,255,0.06)"/>
-  <rect x="0" y="127" width="128" height="1" fill="rgba(0,0,0,0.3)"/>
-
   <!-- Cursor glyph (Lucide "mouse-pointer-2"), 90x90 centered (~70% fill), scaled from 24x24 viewBox -->
   <svg x="19" y="19" width="90" height="90" viewBox="0 0 24 24" fill="none"
        stroke="#7CB9E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
