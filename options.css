@@ -487,6 +487,8 @@ select.inline { appearance:none; -webkit-appearance:none; padding-right:22px; ba
 .import-identical-banner summary { cursor:pointer; list-style:disclosure-closed; padding-left:2px; }
 .import-identical-banner details[open] summary { list-style:disclosure-open; margin-bottom:6px; }
 .import-identical-banner summary::-webkit-details-marker { color:var(--muted); }
+.cc-identical-actions { display:flex; justify-content:flex-end; margin:6px 0 8px; }
+.cc-identical-actions .btn.sm { height:24px; padding:0 10px; font-size:12px; }
 .cc-identical-list { margin:0; padding:0 0 0 18px; display:flex; flex-direction:column; gap:4px; }
 .cc-identical-list li { font-family:var(--mono); font-size:11.5px; color:var(--muted); list-style:disc; }
 .cc-identical-list .cc-kind { display:inline-block; margin-right:6px; }
@@ -502,9 +504,10 @@ select.inline { appearance:none; -webkit-appearance:none; padding-right:22px; ba
 .cc-trigger { font-family:var(--mono); font-size:11.5px; color:var(--ink-2); word-break:break-all; }
 .cc-versions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 @media (max-width:520px) { .cc-versions { grid-template-columns:1fr; } }
-.cc-side { padding:8px 10px; border-radius:7px; border:1px solid var(--border); background:var(--cream); display:flex; flex-direction:column; gap:3px; min-width:0; }
-.cc-side.cc-existing { border-color:rgb(var(--cornflower-rgb) / .3); background:rgb(var(--cornflower-rgb) / .05); }
-.cc-side.cc-incoming { border-color:rgb(var(--navy-rgb) / .2); }
+.cc-side { all:unset; box-sizing:border-box; padding:8px 10px; border-radius:7px; border:1px solid var(--border); background:var(--cream); display:flex; flex-direction:column; gap:3px; min-width:0; cursor:pointer; text-align:left; transition:border-color .15s ease, background-color .15s ease, box-shadow .15s ease; }
+.cc-side:hover { border-color:var(--border-strong); }
+.cc-side:focus-visible { outline:2px solid var(--cornflower); outline-offset:1px; }
+.cc-side.is-selected { border-color:var(--cornflower); background:rgb(var(--cornflower-rgb) / .08); box-shadow:0 0 0 1px rgb(var(--cornflower-rgb) / .35); }
 .cc-label { font-family:var(--mono); font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); }
 .cc-name { font-size:13px; color:var(--text-strong); font-weight:500; word-break:break-word; }
 .cc-name.is-diff { color:var(--rose); }

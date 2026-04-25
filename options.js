@@ -362,6 +362,9 @@ function attachGlobalListeners() {
   document.getElementById('import-conflict-apply').addEventListener('click', applyConflictPlan);
   document.getElementById('import-bulk-skip').addEventListener('click', () => setAllResolutions('skip'));
   document.getElementById('import-bulk-overwrite').addEventListener('click', () => setAllResolutions('overwrite'));
+  const conflictList = document.getElementById('import-conflict-list');
+  conflictList.addEventListener('click', handleConflictListClick);
+  conflictList.addEventListener('change', handleConflictListChange);
   document.getElementById('import-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'import-overlay') closeImportDialog();
   });
@@ -759,8 +762,25 @@ function renderIdenticalBanner(identicals) {
   banner.innerHTML = `
     <details>
       <summary>${n} imported rule${n === 1 ? ' is' : 's are'} byte-identical to existing rule${n === 1 ? '' : 's'} — will be skipped.</summary>
+      <div class="cc-identical-actions">
+        <button class="btn ghost sm" id="import-identical-force" type="button">Import anyway as duplicate${n === 1 ? '' : 's'}</button>
+      </div>
       <ul class="cc-identical-list">${items}</ul>
     </details>`;
+  const forceBtn = document.getElementById('import-identical-force');
+  if (forceBtn) forceBtn.addEventListener('click', forceImportIdenticals);
+}
+
+function forceImportIdenticals() {
+  if (!pendingPlan || pendingPlan.identicals.length === 0) return;
+  for (const { kind, incoming } of pendingPlan.identicals) {
+    const bucket = kind === 'tabClose'
+      ? pendingPlan.additions.tabCloseRules
+      : pendingPlan.additions.buttonClickRules;
+    bucket.push(incoming);
+  }
+  pendingPlan.identicals = [];
+  renderIdenticalBanner(pendingPlan.identicals);
 }
 
 function renderConflictRow(conflict, idx) {
@@ -768,14 +788,14 @@ function renderConflictRow(conflict, idx) {
   const trigger = describeTrigger(conflict.incoming, conflict.kind);
   const diffSet = new Set(conflict.diff || []);
   return `
-    <div class="import-conflict-row" data-idx="${idx}">
+    <div class="import-conflict-row" data-idx="${idx}" data-resolution="${escapeHTML(conflict.resolution)}">
       <div class="cc-meta">
         <span class="cc-kind">${escapeHTML(kindLabel)}</span>
         <span class="cc-trigger">${escapeHTML(trigger)}</span>
       </div>
       <div class="cc-versions">
-        ${renderConflictSide('existing', 'Existing', conflict.existing, conflict.kind, diffSet)}
-        ${renderConflictSide('incoming', 'Incoming', conflict.incoming, conflict.kind, diffSet)}
+        ${renderConflictSide('existing', 'skip', 'Existing', conflict.existing, conflict.kind, diffSet, conflict.resolution, idx)}
+        ${renderConflictSide('incoming', 'overwrite', 'Incoming', conflict.incoming, conflict.kind, diffSet, conflict.resolution, idx)}
       </div>
       <div class="cc-toggle" role="radiogroup" aria-label="${escapeHTML(kindLabel)} conflict resolution">
         <label><input type="radio" name="cc-res-${idx}" value="skip" ${conflict.resolution === 'skip' ? 'checked' : ''}> Skip</label>
@@ -784,8 +804,9 @@ function renderConflictRow(conflict, idx) {
     </div>`;
 }
 
-function renderConflictSide(slot, label, rule, kind, diffSet) {
+function renderConflictSide(slot, value, label, rule, kind, diffSet, resolution, idx) {
   const cls = (field) => diffSet.has(field) ? 'cc-field is-diff' : 'cc-field';
+  const isSelected = resolution === value;
   const name = rule.name || '(unnamed)';
   const matchType = fieldValue(rule, 'matchType');
   const delay = fieldValue(rule, 'delay');
@@ -793,7 +814,11 @@ function renderConflictSide(slot, label, rule, kind, diffSet) {
   const delayLabel = kind === 'tabClose' ? `${delay}ms countdown` : `${delay}ms delay`;
   const enabledLabel = enabled ? 'enabled' : 'disabled';
   return `
-    <div class="cc-side cc-${slot}">
+    <button type="button"
+            class="cc-side cc-${slot} ${isSelected ? 'is-selected' : ''}"
+            data-cc-res-target="${idx}"
+            data-cc-res-value="${value}"
+            aria-pressed="${isSelected}">
       <span class="cc-label">${escapeHTML(label)}</span>
       <span class="cc-name ${diffSet.has('name') ? 'is-diff' : ''}">${escapeHTML(name)}</span>
       <div class="cc-fields">
@@ -803,7 +828,7 @@ function renderConflictSide(slot, label, rule, kind, diffSet) {
         <span class="cc-sep">·</span>
         <span class="${cls('enabled')}">${escapeHTML(enabledLabel)}</span>
       </div>
-    </div>`;
+    </button>`;
 }
 
 function describeTrigger(rule, kind) {
@@ -816,12 +841,38 @@ function describeTrigger(rule, kind) {
   return url;
 }
 
-function setAllResolutions(value) {
-  if (!pendingPlan) return;
+function setRowResolution(idx, value) {
   const list = document.getElementById('import-conflict-list');
-  list.querySelectorAll('input[type="radio"]').forEach(input => {
+  const row = list.querySelector(`.import-conflict-row[data-idx="${idx}"]`);
+  if (!row) return;
+  row.dataset.resolution = value;
+  list.querySelectorAll(`input[name="cc-res-${idx}"]`).forEach(input => {
     input.checked = input.value === value;
   });
+  row.querySelectorAll('.cc-side').forEach(side => {
+    const isSel = side.dataset.ccResValue === value;
+    side.classList.toggle('is-selected', isSel);
+    side.setAttribute('aria-pressed', String(isSel));
+  });
+}
+
+function handleConflictListClick(e) {
+  const sideBtn = e.target.closest('.cc-side[data-cc-res-target]');
+  if (!sideBtn) return;
+  e.preventDefault();
+  setRowResolution(sideBtn.dataset.ccResTarget, sideBtn.dataset.ccResValue);
+}
+
+function handleConflictListChange(e) {
+  const radio = e.target.closest('input[type="radio"][name^="cc-res-"]');
+  if (!radio || !radio.checked) return;
+  const idx = radio.name.replace('cc-res-', '');
+  setRowResolution(idx, radio.value);
+}
+
+function setAllResolutions(value) {
+  if (!pendingPlan) return;
+  pendingPlan.conflicts.forEach((_, i) => setRowResolution(i, value));
 }
 
 function applyConflictPlan() {
