@@ -611,7 +611,7 @@ function openImportDialog(imported) {
   document.getElementById('import-current').textContent =
     `You currently have:\n  · ${rules.tabCloseRules.length} tab-close rule${rules.tabCloseRules.length === 1 ? '' : 's'}\n  · ${rules.buttonClickRules.length} button-click rule${rules.buttonClickRules.length === 1 ? '' : 's'}`;
   const total = imported.tabCloseRules.length + imported.buttonClickRules.length;
-  document.getElementById('import-merge').textContent = `Merge — add ${total} rule${total === 1 ? '' : 's'}`;
+  document.getElementById('import-merge').textContent = `Merge ${total} rule${total === 1 ? '' : 's'}`;
   document.getElementById('import-overlay').classList.add('open');
 }
 
@@ -626,41 +626,56 @@ function closeImportDialog() {
   pendingPlan = null;
 }
 
-// A1 dedup signature:
-// - tab-close: matchType + urlPattern
-// - button-click: matchType + urlPattern + selector + buttonText
+// URL-first dedup signature:
+// - tab-close: urlPattern
+// - button-click: urlPattern + selector + buttonText (selector+text scope WHICH button)
+// matchType is NOT part of the signature — same URL with different match type collides.
 function conflictKey(rule, kind) {
-  const base = `${rule.matchType || 'glob'} ${rule.urlPattern || ''}`;
+  const base = rule.urlPattern || '';
   if (kind === 'buttonClick') {
-    return `${base} ${rule.selector || ''} ${rule.buttonText || ''}`;
+    return `${base} ${rule.selector || ''} ${rule.buttonText || ''}`;
   }
   return base;
 }
 
+const DIFF_FIELDS = ['name', 'matchType', 'delay', 'enabled'];
+
+function fieldValue(rule, field) {
+  if (field === 'enabled') return rule.enabled !== false;
+  if (field === 'matchType') return rule.matchType || 'glob';
+  if (field === 'delay') return Number(rule.delay) || 0;
+  return rule[field] ?? '';
+}
+
+function diffFields(existing, incoming) {
+  return DIFF_FIELDS.filter(f => fieldValue(existing, f) !== fieldValue(incoming, f));
+}
+
 function buildConflictPlan(imported, existing) {
   const conflicts = [];
+  const identicals = [];
   const additions = { tabCloseRules: [], buttonClickRules: [] };
   const existingKeys = {
     tabClose: new Map(existing.tabCloseRules.map(r => [conflictKey(r, 'tabClose'), r])),
     buttonClick: new Map(existing.buttonClickRules.map(r => [conflictKey(r, 'buttonClick'), r]))
   };
-  for (const r of imported.tabCloseRules) {
-    const k = conflictKey(r, 'tabClose');
-    if (existingKeys.tabClose.has(k)) {
-      conflicts.push({ kind: 'tabClose', existing: existingKeys.tabClose.get(k), incoming: r, resolution: 'skip' });
-    } else {
-      additions.tabCloseRules.push(r);
+  const classify = (incoming, kind, addBucket) => {
+    const map = kind === 'tabClose' ? existingKeys.tabClose : existingKeys.buttonClick;
+    const existingMatch = map.get(conflictKey(incoming, kind));
+    if (!existingMatch) {
+      addBucket.push(incoming);
+      return;
     }
-  }
-  for (const r of imported.buttonClickRules) {
-    const k = conflictKey(r, 'buttonClick');
-    if (existingKeys.buttonClick.has(k)) {
-      conflicts.push({ kind: 'buttonClick', existing: existingKeys.buttonClick.get(k), incoming: r, resolution: 'skip' });
+    const diff = diffFields(existingMatch, incoming);
+    if (diff.length === 0) {
+      identicals.push({ kind, existing: existingMatch, incoming });
     } else {
-      additions.buttonClickRules.push(r);
+      conflicts.push({ kind, existing: existingMatch, incoming, diff, resolution: 'skip' });
     }
-  }
-  return { conflicts, additions };
+  };
+  for (const r of imported.tabCloseRules) classify(r, 'tabClose', additions.tabCloseRules);
+  for (const r of imported.buttonClickRules) classify(r, 'buttonClick', additions.buttonClickRules);
+  return { conflicts, identicals, additions };
 }
 
 function commitImport(mode) {
@@ -679,7 +694,10 @@ function commitImport(mode) {
   const plan = buildConflictPlan(pendingImport, rules);
   if (plan.conflicts.length === 0) {
     appendAdditions(plan.additions);
-    finishImport('merged', { added: plan.additions.tabCloseRules.length + plan.additions.buttonClickRules.length });
+    const added = plan.additions.tabCloseRules.length + plan.additions.buttonClickRules.length;
+    const counts = { added };
+    if (plan.identicals.length > 0) counts.identical = plan.identicals.length;
+    finishImport('merged', counts);
     return;
   }
   pendingPlan = plan;
@@ -702,6 +720,7 @@ function finishImport(verb, counts) {
     if (counts.added != null) parts.push(`${counts.added} added`);
     if (counts.overwritten != null) parts.push(`${counts.overwritten} overwritten`);
     if (counts.skipped != null) parts.push(`${counts.skipped} skipped`);
+    if (counts.identical != null) parts.push(`${counts.identical} identical skipped`);
     if (parts.length) msg = `Rules ${verb} (${parts.join(', ')}) — remember to save`;
   }
   showStatus(msg, 'success');
@@ -714,18 +733,40 @@ function showConflictView(plan) {
   document.getElementById('import-title').textContent = 'Resolve conflicts';
   const n = plan.conflicts.length;
   const addCount = plan.additions.tabCloseRules.length + plan.additions.buttonClickRules.length;
-  const summaryParts = [`${n} rule${n === 1 ? '' : 's'} already exist with the same trigger.`];
+  const summaryParts = [`${n} imported rule${n === 1 ? '' : 's'} differ${n === 1 ? 's' : ''} from an existing rule with the same URL.`];
   if (addCount > 0) summaryParts.push(`${addCount} new rule${addCount === 1 ? '' : 's'} will be added regardless.`);
   document.getElementById('import-conflict-summary').textContent = summaryParts.join(' ');
+  renderIdenticalBanner(plan.identicals);
   const list = document.getElementById('import-conflict-list');
   list.innerHTML = plan.conflicts.map((c, i) => renderConflictRow(c, i)).join('');
+}
+
+function renderIdenticalBanner(identicals) {
+  const banner = document.getElementById('import-identical-banner');
+  if (!banner) return;
+  if (!identicals || identicals.length === 0) {
+    banner.hidden = true;
+    banner.innerHTML = '';
+    return;
+  }
+  banner.hidden = false;
+  const n = identicals.length;
+  const items = identicals.map(({ existing, kind }) => {
+    const k = kind === 'tabClose' ? 'Tab close' : 'Button click';
+    const name = existing.name || '(unnamed)';
+    return `<li><span class="cc-kind">${escapeHTML(k)}</span> <span class="cc-name">${escapeHTML(name)}</span> <span class="cc-trigger">${escapeHTML(existing.urlPattern || '')}</span></li>`;
+  }).join('');
+  banner.innerHTML = `
+    <details>
+      <summary>${n} imported rule${n === 1 ? ' is' : 's are'} byte-identical to existing rule${n === 1 ? '' : 's'} — will be skipped.</summary>
+      <ul class="cc-identical-list">${items}</ul>
+    </details>`;
 }
 
 function renderConflictRow(conflict, idx) {
   const kindLabel = conflict.kind === 'tabClose' ? 'Tab close' : 'Button click';
   const trigger = describeTrigger(conflict.incoming, conflict.kind);
-  const existing = describeRule(conflict.existing, conflict.kind);
-  const incoming = describeRule(conflict.incoming, conflict.kind);
+  const diffSet = new Set(conflict.diff || []);
   return `
     <div class="import-conflict-row" data-idx="${idx}">
       <div class="cc-meta">
@@ -733,16 +774,8 @@ function renderConflictRow(conflict, idx) {
         <span class="cc-trigger">${escapeHTML(trigger)}</span>
       </div>
       <div class="cc-versions">
-        <div class="cc-side cc-existing">
-          <span class="cc-label">Existing</span>
-          <span class="cc-name">${escapeHTML(existing.name)}</span>
-          <span class="cc-detail">${escapeHTML(existing.detail)}</span>
-        </div>
-        <div class="cc-side cc-incoming">
-          <span class="cc-label">Incoming</span>
-          <span class="cc-name">${escapeHTML(incoming.name)}</span>
-          <span class="cc-detail">${escapeHTML(incoming.detail)}</span>
-        </div>
+        ${renderConflictSide('existing', 'Existing', conflict.existing, conflict.kind, diffSet)}
+        ${renderConflictSide('incoming', 'Incoming', conflict.incoming, conflict.kind, diffSet)}
       </div>
       <div class="cc-toggle" role="radiogroup" aria-label="${escapeHTML(kindLabel)} conflict resolution">
         <label><input type="radio" name="cc-res-${idx}" value="skip" ${conflict.resolution === 'skip' ? 'checked' : ''}> Skip</label>
@@ -751,25 +784,36 @@ function renderConflictRow(conflict, idx) {
     </div>`;
 }
 
+function renderConflictSide(slot, label, rule, kind, diffSet) {
+  const cls = (field) => diffSet.has(field) ? 'cc-field is-diff' : 'cc-field';
+  const name = rule.name || '(unnamed)';
+  const matchType = fieldValue(rule, 'matchType');
+  const delay = fieldValue(rule, 'delay');
+  const enabled = fieldValue(rule, 'enabled');
+  const delayLabel = kind === 'tabClose' ? `${delay}ms countdown` : `${delay}ms delay`;
+  const enabledLabel = enabled ? 'enabled' : 'disabled';
+  return `
+    <div class="cc-side cc-${slot}">
+      <span class="cc-label">${escapeHTML(label)}</span>
+      <span class="cc-name ${diffSet.has('name') ? 'is-diff' : ''}">${escapeHTML(name)}</span>
+      <div class="cc-fields">
+        <span class="${cls('matchType')}">${escapeHTML(matchType)}</span>
+        <span class="cc-sep">·</span>
+        <span class="${cls('delay')}">${escapeHTML(delayLabel)}</span>
+        <span class="cc-sep">·</span>
+        <span class="${cls('enabled')}">${escapeHTML(enabledLabel)}</span>
+      </div>
+    </div>`;
+}
+
 function describeTrigger(rule, kind) {
-  const mt = rule.matchType || 'glob';
-  const base = `${mt}: ${rule.urlPattern || '(no pattern)'}`;
+  const url = rule.urlPattern || '(no pattern)';
   if (kind === 'buttonClick') {
     const sel = rule.selector ? ` · ${rule.selector}` : '';
     const txt = rule.buttonText ? ` · "${rule.buttonText}"` : '';
-    return base + sel + txt;
+    return url + sel + txt;
   }
-  return base;
-}
-
-function describeRule(rule, kind) {
-  const name = rule.name || '(unnamed)';
-  const enabled = rule.enabled === false ? 'disabled' : 'enabled';
-  const delay = `${rule.delay ?? 0}ms`;
-  const detail = kind === 'tabClose'
-    ? `${delay} countdown · ${enabled}`
-    : `${delay} delay · ${enabled}`;
-  return { name, detail };
+  return url;
 }
 
 function setAllResolutions(value) {
