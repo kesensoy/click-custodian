@@ -612,7 +612,6 @@ function filterRules(pageId, query) {
 
 // ---------- Reset / Import / Export ----------
 async function resetConfig() {
-  if (!confirm('Replace current rules with the bundled defaults? Nothing is saved until you click Save changes.')) return;
   try {
     const response = await fetch(chrome.runtime.getURL('seed-examples.json'));
     const seed = await response.json();

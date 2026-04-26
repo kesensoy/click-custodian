@@ -445,7 +445,6 @@ test.describe('Options UI — import/export/reset', () => {
 
     const page = await openOptions();
 
-    page.on('dialog', dialog => dialog.accept());
     await page.click('#reset-config');
 
     // Toast acknowledges the reset and prompts saving.
