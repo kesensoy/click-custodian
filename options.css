@@ -419,11 +419,14 @@ select.inline { appearance:none; -webkit-appearance:none; padding-right:22px; ba
 .actionbar .help-pill { all:unset; cursor:pointer; width:28px; height:28px; border-radius:50%; border:1px solid var(--border-strong); background:var(--cream); color:var(--text-strong); font-family:var(--serif); font-weight:500; font-size:15px; display:inline-grid; place-items:center; transition:border-color .15s ease, background .15s ease; }
 .actionbar .help-pill:hover { border-color:var(--cornflower); background:var(--cornflower-050); color:var(--text-strong); }
 
-/* Toast / status message — opacity-based so the fade-out is observable. */
-.status-message { position:fixed; left:50%; bottom:88px; transform:translateX(-50%); z-index:25; padding:10px 18px; border-radius:8px; font-size:13px; font-weight:500; box-shadow:var(--shadow-bar); border:1px solid var(--border); opacity:0; visibility:hidden; pointer-events:none; transition:opacity 600ms ease, visibility 0s linear 600ms; }
+/* Toast / status message — three-state: hidden (no class), visible (.success or
+   .error), fading (one of those + .is-fading). Fading keeps pointer-events on so
+   the user can catch the toast mid-fade and re-arm the timer. */
+.status-message { position:fixed; left:50%; bottom:88px; transform:translateX(-50%); z-index:25; padding:10px 18px; border-radius:8px; font-size:13px; font-weight:500; box-shadow:var(--shadow-bar); border:1px solid var(--border); opacity:0; visibility:hidden; pointer-events:none; transition:opacity 1500ms ease, visibility 0s linear 1500ms; }
 .status-message.success, .status-message.error { opacity:1; visibility:visible; pointer-events:auto; transition:opacity 180ms ease, visibility 0s; }
 .status-message.success { background:var(--status-success-bg); color:var(--status-success-fg); border-color:var(--status-success-fg); }
 .status-message.error { background:var(--status-error-bg); color:var(--status-error-fg); border-color:var(--status-error-fg); }
+.status-message.is-fading { opacity:0; visibility:visible; pointer-events:auto; transition:opacity 1500ms ease, visibility 0s; }
 
 /* Shortcut popover */
 .overlay { position:fixed; inset:0; background:rgba(15,19,32,.38); display:none; align-items:center; justify-content:center; z-index:50; animation:fadeIn 140ms ease; }

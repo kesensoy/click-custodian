@@ -242,24 +242,41 @@ function applySaveButtonState(dirty) {
   }
 }
 
-let statusTimer = null;
-const STATUS_VISIBLE_MS = 4000;
+// Toast lifecycle: VISIBLE_MS at full opacity → FADE_MS slowly fading out
+// (still hoverable). Hover at any point cancels both timers and pops it
+// back to full opacity; mouseleave restarts a shorter HOVER_RESTART_MS
+// visible window before fading again.
+const STATUS_VISIBLE_MS = 3500;
+const STATUS_FADE_MS = 1500;
 const STATUS_HOVER_RESTART_MS = 1500;
+let statusFadeTimer = null;
+let statusClearTimer = null;
+
+function clearStatusTimers() {
+  if (statusFadeTimer) { clearTimeout(statusFadeTimer); statusFadeTimer = null; }
+  if (statusClearTimer) { clearTimeout(statusClearTimer); statusClearTimer = null; }
+}
 
 function showStatus(message, type) {
   const el = document.getElementById('status-message');
   el.textContent = message;
+  el.classList.remove('is-fading');
   el.className = `status-message ${type}`;
-  scheduleStatusHide(STATUS_VISIBLE_MS);
+  startStatusHideCycle(STATUS_VISIBLE_MS);
 }
 
-function scheduleStatusHide(ms) {
-  if (statusTimer) clearTimeout(statusTimer);
-  statusTimer = setTimeout(() => {
+function startStatusHideCycle(visibleMs) {
+  clearStatusTimers();
+  statusFadeTimer = setTimeout(() => {
     const el = document.getElementById('status-message');
-    if (el) el.className = 'status-message';
-    statusTimer = null;
-  }, ms);
+    if (el) el.classList.add('is-fading');
+    statusFadeTimer = null;
+    statusClearTimer = setTimeout(() => {
+      const el = document.getElementById('status-message');
+      if (el) el.className = 'status-message';
+      statusClearTimer = null;
+    }, STATUS_FADE_MS);
+  }, visibleMs);
 }
 
 // ---------- Rendering ----------
@@ -441,15 +458,18 @@ function attachGlobalListeners() {
     if (e.target.id === 'import-overlay') closeImportDialog();
   });
 
-  // Hover pauses the status toast; leaving restarts a shorter timer.
+  // Hover cancels any pending fade/clear and pops the toast back to full
+  // opacity; mouseleave starts a fresh shorter visible window. Works whether
+  // the toast is fully visible OR partway through fading out.
   const statusEl = document.getElementById('status-message');
   if (statusEl) {
     statusEl.addEventListener('mouseenter', () => {
-      if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
+      clearStatusTimers();
+      statusEl.classList.remove('is-fading');
     });
     statusEl.addEventListener('mouseleave', () => {
       if (statusEl.classList.contains('success') || statusEl.classList.contains('error')) {
-        scheduleStatusHide(STATUS_HOVER_RESTART_MS);
+        startStatusHideCycle(STATUS_HOVER_RESTART_MS);
       }
     });
   }
