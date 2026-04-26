@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   attachGlobalListeners();
   attachJsonEditorListeners();
   restoreActivePage();
+  markClean();
 });
 
 window.addEventListener('beforeunload', (e) => {
@@ -118,6 +119,7 @@ function updatePalettePopoverActive() {
 }
 
 async function saveConfig() {
+  if (!hasUnsavedChanges) return;
   try {
     await chrome.storage.sync.set({
       tabCloseRules: rules.tabCloseRules,
@@ -213,6 +215,7 @@ function recomputeDirtyState() {
     const text = document.getElementById('actionbar-info-text');
     info.classList.remove('is-clean');
     text.textContent = 'unsaved changes';
+    applySaveButtonState(true);
   } else {
     markClean();
   }
@@ -224,6 +227,19 @@ function markClean() {
   const text = document.getElementById('actionbar-info-text');
   info.classList.add('is-clean');
   text.textContent = 'saved';
+  applySaveButtonState(false);
+}
+
+function applySaveButtonState(dirty) {
+  const btn = document.getElementById('save-config');
+  if (!btn) return;
+  btn.classList.toggle('primary', dirty);
+  btn.classList.toggle('ghost', !dirty);
+  if (dirty) {
+    btn.removeAttribute('aria-disabled');
+  } else {
+    btn.setAttribute('aria-disabled', 'true');
+  }
 }
 
 function showStatus(message, type) {
