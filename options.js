@@ -1190,15 +1190,65 @@ function showJsonError(editor, message) {
 
 function formatParseError(err, text) {
   const msg = err.message || String(err);
-  const posMatch = msg.match(/position\s+(\d+)/i);
-  if (posMatch) {
-    const pos = Number(posMatch[1]);
-    const before = text.slice(0, pos);
-    const line = before.split('\n').length;
-    const col = pos - (before.lastIndexOf('\n') + 1) + 1;
-    return `${msg}\n→ line ${line}, column ${col}`;
+  let line, col;
+  const setLineColFromPos = (pos) => {
+    const clamped = Math.max(0, Math.min(pos, text.length));
+    const before = text.slice(0, clamped);
+    line = before.split('\n').length;
+    col = clamped - (before.lastIndexOf('\n') + 1) + 1;
+  };
+  // Three V8 formats in the wild — try them in order of specificity:
+  // 1. "(line N column M)" — modern Chrome includes it directly.
+  // 2. "position N" — older/shorter messages.
+  // 3. "Unexpected token X, "...SNIPPET..." is not valid JSON" — newest Chrome
+  //    drops position entirely, just gives a quoted context window. Search for
+  //    that snippet in the text to recover an approximate offset.
+  const lineColMatch = msg.match(/\(line\s+(\d+)\s+column\s+(\d+)\)/i);
+  if (lineColMatch) {
+    line = Number(lineColMatch[1]);
+    col = Number(lineColMatch[2]);
+  } else {
+    const posMatch = msg.match(/position\s+(\d+)/i);
+    if (posMatch) {
+      setLineColFromPos(Number(posMatch[1]));
+    } else {
+      // V8 wraps the snippet as `...<quoted>...` for truncated context, or
+      // `<quoted>` outright for short inputs. Anchor on the ellipses first.
+      let snippet = null;
+      const ellipsisMatch = msg.match(/(?:\.\.\.|…)([\s\S]+?)(?:\.\.\.|…)\s+is not valid JSON/);
+      if (ellipsisMatch) {
+        snippet = ellipsisMatch[1];
+      } else {
+        const wholeMatch = msg.match(/"([\s\S]+?)"\s+is not valid JSON/);
+        if (wholeMatch) snippet = wholeMatch[1];
+      }
+      if (snippet) {
+        // Strip V8's wrapping quote characters if they're around the snippet body.
+        if (snippet.startsWith('"') && snippet.endsWith('"')) snippet = snippet.slice(1, -1);
+        if (snippet.length >= 3) {
+          const idx = text.indexOf(snippet);
+          if (idx >= 0) setLineColFromPos(idx);
+        }
+      }
+    }
   }
-  return msg;
+  if (line == null) return msg;
+
+  // Show the offending line with a caret pointer underneath the column.
+  const lines = text.split('\n');
+  const raw = lines[line - 1] || '';
+  const max = 80;
+  let snippet = raw;
+  let pointerCol = col;
+  if (raw.length > max) {
+    // Window the snippet around the column so the caret stays visible.
+    const start = Math.max(0, col - Math.floor(max / 2));
+    const end = Math.min(raw.length, start + max);
+    snippet = (start > 0 ? '…' : '') + raw.slice(start, end) + (end < raw.length ? '…' : '');
+    pointerCol = col - start + (start > 0 ? 1 : 0);
+  }
+  const pointer = ' '.repeat(Math.max(0, pointerCol - 1)) + '^';
+  return `${msg}\n→ line ${line}, column ${col}\n  ${snippet}\n  ${pointer}`;
 }
 
 function applyJson(pageId) {
