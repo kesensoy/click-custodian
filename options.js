@@ -1050,6 +1050,7 @@ function attachJsonEditorListeners() {
     const editor = document.getElementById(cfg.editorId);
     if (!editor) return;
     const textarea = editor.querySelector('[data-role="textarea"]');
+    const overlay = editor.querySelector('.json-editor-overlay');
     const applyBtn = editor.querySelector('[data-role="apply"]');
     const discardBtn = editor.querySelector('[data-role="discard"]');
 
@@ -1058,6 +1059,13 @@ function attachJsonEditorListeners() {
       state.dirtyInView = textarea.value !== state.originalSerialized;
       updateJsonStatus(editor, state.dirtyInView);
       livePreviewJson(editor, textarea.value);
+      paintOverlay(editor, textarea.value);
+    });
+
+    textarea.addEventListener('scroll', () => {
+      if (!overlay) return;
+      overlay.scrollTop = textarea.scrollTop;
+      overlay.scrollLeft = textarea.scrollLeft;
     });
 
     textarea.addEventListener('keydown', (e) => {
@@ -1131,6 +1139,13 @@ function resetTextareaFromRules(pageId) {
   jsonView[pageId].dirtyInView = false;
   clearJsonError(editor);
   updateJsonStatus(editor, false);
+  paintOverlay(editor, serialized);
+}
+
+function paintOverlay(editor, text) {
+  const code = editor.querySelector('[data-role="overlay-code"]');
+  if (!code || typeof window.highlightJSON !== 'function') return;
+  code.innerHTML = window.highlightJSON(text);
 }
 
 function refreshActiveJsonViews() {

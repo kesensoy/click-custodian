@@ -129,7 +129,10 @@
           <span class="json-editor-label">Editing <code>tabCloseRules</code> as JSON</span>
           <span class="json-editor-status" data-role="status"></span>
         </div>
-        <textarea class="json-editor-text" spellcheck="false" autocorrect="off" autocapitalize="off" data-role="textarea" aria-label="tabCloseRules JSON editor"></textarea>
+        <div class="je-stack">
+          <pre class="json-editor-overlay" aria-hidden="true"><code data-role="overlay-code"></code></pre>
+          <textarea class="json-editor-text" spellcheck="false" autocorrect="off" autocapitalize="off" data-role="textarea" aria-label="tabCloseRules JSON editor"></textarea>
+        </div>
         <div class="json-editor-error" data-role="error" hidden></div>
         <div class="json-editor-actions">
           <button class="btn ghost" data-role="discard">Discard</button>
@@ -169,7 +172,10 @@
           <span class="json-editor-label">Editing <code>buttonClickRules</code> as JSON</span>
           <span class="json-editor-status" data-role="status"></span>
         </div>
-        <textarea class="json-editor-text" spellcheck="false" autocorrect="off" autocapitalize="off" data-role="textarea" aria-label="buttonClickRules JSON editor"></textarea>
+        <div class="je-stack">
+          <pre class="json-editor-overlay" aria-hidden="true"><code data-role="overlay-code"></code></pre>
+          <textarea class="json-editor-text" spellcheck="false" autocorrect="off" autocapitalize="off" data-role="textarea" aria-label="buttonClickRules JSON editor"></textarea>
+        </div>
         <div class="json-editor-error" data-role="error" hidden></div>
         <div class="json-editor-actions">
           <button class="btn ghost" data-role="discard">Discard</button>
@@ -251,6 +257,7 @@
   </div>
 </div>
 
+<script src="json-highlight.js"></script>
 <script src="options.js"></script>
 </body>
 </html>

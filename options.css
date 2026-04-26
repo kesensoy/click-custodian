@@ -467,10 +467,25 @@ select.inline { appearance:none; -webkit-appearance:none; padding-right:22px; ba
 .json-editor-label code { font-family:var(--mono); color:var(--ink-2); font-size:11px; background:var(--cream-200); padding:1px 6px; border-radius:4px; letter-spacing:0; text-transform:none; }
 .json-editor-status { margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--muted); }
 .json-editor-status.is-dirty { color:var(--cornflower-600); }
-.json-editor-text { all:unset; display:block; width:100%; min-height:380px; max-height:62vh; padding:12px 14px; font-family:var(--mono); font-size:12.5px; line-height:1.55; color:var(--ink-2); background:var(--cream); border:1px solid var(--border); border-radius:var(--radius-sm); resize:vertical; white-space:pre; overflow:auto; tab-size:2; -moz-tab-size:2; box-sizing:border-box; transition:border-color .12s ease, box-shadow .12s ease, background .12s ease; }
-.json-editor-text:focus { border-color:var(--cornflower); background:var(--white); box-shadow:0 0 0 3px rgb(var(--cornflower-rgb) / .22); }
-.json-editor.is-invalid .json-editor-text { border-color:var(--rose); }
-.json-editor.is-invalid .json-editor-text:focus { box-shadow:0 0 0 3px rgba(196,86,59,.22); }
+/* Editor stack: <textarea> on top (transparent text, native caret), <pre> overlay
+   underneath provides token colors. Both share the same font/padding/border so
+   each character lines up exactly. */
+.je-stack { position:relative; }
+.json-editor-text { all:unset; display:block; width:100%; min-height:380px; max-height:62vh; padding:12px 14px; font-family:var(--mono); font-size:12.5px; line-height:1.55; border:1px solid transparent; border-radius:var(--radius-sm); resize:vertical; white-space:pre; overflow:auto; tab-size:2; -moz-tab-size:2; box-sizing:border-box; background:transparent; color:transparent; caret-color:var(--ink-2); -webkit-text-fill-color:transparent; position:relative; z-index:2; }
+.json-editor-text::selection { background:rgb(var(--cornflower-rgb) / .35); color:var(--ink-2); -webkit-text-fill-color:var(--ink-2); }
+.json-editor-overlay { position:absolute; inset:0; margin:0; padding:12px 14px; font-family:var(--mono); font-size:12.5px; line-height:1.55; color:var(--ink-2); background:var(--cream); border:1px solid var(--border); border-radius:var(--radius-sm); white-space:pre; overflow:auto; tab-size:2; -moz-tab-size:2; pointer-events:none; box-sizing:border-box; z-index:1; transition:border-color .12s ease, box-shadow .12s ease, background .12s ease; scrollbar-width:none; }
+.json-editor-overlay::-webkit-scrollbar { width:0; height:0; }
+.json-editor-overlay code { font:inherit; color:inherit; background:transparent; padding:0; }
+.je-stack:focus-within .json-editor-overlay { background:var(--white); border-color:var(--cornflower); box-shadow:0 0 0 3px rgb(var(--cornflower-rgb) / .22); }
+.json-editor.is-invalid .json-editor-overlay { border-color:var(--rose); }
+.json-editor.is-invalid .je-stack:focus-within .json-editor-overlay { box-shadow:0 0 0 3px rgba(196,86,59,.22); }
+/* Token colors — palette/theme aware via inherited custom properties */
+.json-editor-overlay .t-key { color:var(--cornflower); }
+.json-editor-overlay .t-string { color:var(--ok); }
+.json-editor-overlay .t-number { color:var(--rose); }
+.json-editor-overlay .t-bool { color:var(--cornflower-600); font-style:italic; }
+.json-editor-overlay .t-null { color:var(--faint); font-style:italic; }
+.json-editor-overlay .t-punct { color:var(--muted); }
 .json-editor-error { font-family:var(--mono); font-size:11.5px; color:var(--rose); background:rgba(196,86,59,.08); border:1px solid rgba(196,86,59,.25); border-radius:var(--radius-sm); padding:8px 10px; white-space:pre-wrap; }
 .json-editor-error[hidden] { display:none; }
 .json-editor-actions { display:flex; justify-content:flex-end; gap:8px; }
