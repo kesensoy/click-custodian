@@ -3,6 +3,11 @@
 
 // ---------- State ----------
 let rules = { tabCloseRules: [], buttonClickRules: [] };
+// savedSnapshot is a deep clone of `rules` at the last known on-disk state.
+// `recomputeDirtyState()` compares `rules` against this baseline so that an
+// edit-then-revert sequence correctly returns the page to "saved" rather than
+// remaining stuck in "unsaved changes" until the user explicitly hits Save.
+let savedSnapshot = { tabCloseRules: [], buttonClickRules: [] };
 let hasUnsavedChanges = false;
 let currentPage = 'page-close';
 // currentTheme holds the raw user PREFERENCE — 'light' | 'dark' | 'auto'.
@@ -52,6 +57,7 @@ async function loadConfig() {
     tabCloseRules: storage.tabCloseRules || [],
     buttonClickRules: storage.buttonClickRules || []
   };
+  savedSnapshot = cloneRules(rules);
   if (VALID_THEMES.includes(storage.theme) && storage.theme !== currentTheme) {
     currentTheme = storage.theme;
     try { localStorage.setItem('cc-theme', currentTheme); } catch (e) {}
@@ -117,6 +123,7 @@ async function saveConfig() {
       tabCloseRules: rules.tabCloseRules,
       buttonClickRules: rules.buttonClickRules
     });
+    savedSnapshot = cloneRules(rules);
     markClean();
     showStatus('Configuration saved', 'success');
   } catch (error) {
@@ -167,12 +174,48 @@ function generateDefaultRuleName(urlPattern) {
   } catch (e) { return 'example.com'; }
 }
 
-function markDirty() {
-  hasUnsavedChanges = true;
-  const info = document.getElementById('actionbar-info');
-  const text = document.getElementById('actionbar-info-text');
-  info.classList.remove('is-clean');
-  text.textContent = 'unsaved changes';
+function cloneRules(src) {
+  return {
+    tabCloseRules: src.tabCloseRules.map(r => ({ ...r })),
+    buttonClickRules: src.buttonClickRules.map(r => ({ ...r }))
+  };
+}
+
+// Structural equality for the rules payload. Array order is meaningful
+// (it is the user-facing display order), so we compare positionally rather
+// than sorting. Field order within a rule object is normalized via sorted
+// JSON stringification so that {a:1,b:2} and {b:2,a:1} compare equal.
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
+  const keys = Object.keys(value).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + stableStringify(value[k])).join(',') + '}';
+}
+
+function rulesEqual(a, b) {
+  if (!a || !b) return a === b;
+  if (a.tabCloseRules.length !== b.tabCloseRules.length) return false;
+  if (a.buttonClickRules.length !== b.buttonClickRules.length) return false;
+  for (let i = 0; i < a.tabCloseRules.length; i++) {
+    if (stableStringify(a.tabCloseRules[i]) !== stableStringify(b.tabCloseRules[i])) return false;
+  }
+  for (let i = 0; i < a.buttonClickRules.length; i++) {
+    if (stableStringify(a.buttonClickRules[i]) !== stableStringify(b.buttonClickRules[i])) return false;
+  }
+  return true;
+}
+
+function recomputeDirtyState() {
+  const dirty = !rulesEqual(rules, savedSnapshot);
+  if (dirty) {
+    hasUnsavedChanges = true;
+    const info = document.getElementById('actionbar-info');
+    const text = document.getElementById('actionbar-info-text');
+    info.classList.remove('is-clean');
+    text.textContent = 'unsaved changes';
+  } else {
+    markClean();
+  }
 }
 
 function markClean() {
@@ -442,7 +485,7 @@ function handleTableChange(e) {
       value = clampDelay(value, 0, 60000, kind === 'user-close' ? 3000 : 1000);
     }
     arr[index][field] = value;
-    markDirty();
+    recomputeDirtyState();
   }
 }
 
@@ -470,7 +513,7 @@ function toggleUserRule(toggleEl) {
   toggleEl.setAttribute('aria-checked', nowEnabled ? 'true' : 'false');
   row.classList.toggle('is-disabled', !nowEnabled);
   arr[index].enabled = nowEnabled;
-  markDirty();
+  recomputeDirtyState();
 }
 
 function deleteUserRule(row) {
@@ -480,7 +523,7 @@ function deleteUserRule(row) {
   const index = Number(row.dataset.userIndex);
   if (kind === 'user-close') rules.tabCloseRules.splice(index, 1);
   else if (kind === 'user-click') rules.buttonClickRules.splice(index, 1);
-  markDirty();
+  recomputeDirtyState();
   renderAll();
 }
 
@@ -500,7 +543,7 @@ function addCloseRule() {
     enabled: true,
     delay: 3000
   });
-  markDirty();
+  recomputeDirtyState();
   renderCloseRules();
   updateNavCounts();
   activatePage('page-close');
@@ -520,7 +563,7 @@ function addClickRule() {
     enabled: true,
     delay: 500
   });
-  markDirty();
+  recomputeDirtyState();
   renderClickRules();
   updateNavCounts();
   activatePage('page-click');
@@ -565,6 +608,7 @@ async function resetConfig() {
       tabCloseRules: rules.tabCloseRules,
       buttonClickRules: rules.buttonClickRules
     });
+    savedSnapshot = cloneRules(rules);
     markClean();
     renderAll();
     refreshActiveJsonViews();
@@ -713,7 +757,7 @@ function appendAdditions(additions) {
 }
 
 function finishImport(verb, counts) {
-  markDirty();
+  recomputeDirtyState();
   renderAll();
   refreshActiveJsonViews();
   closeImportDialog();
@@ -1135,7 +1179,7 @@ function applyJson(pageId) {
   updateNavCounts();
 
   resetTextareaFromRules(pageId);
-  markDirty();
+  recomputeDirtyState();
   showStatus('JSON applied — remember to save', 'success');
 }
 
