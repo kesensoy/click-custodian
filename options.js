@@ -260,7 +260,6 @@ function clearStatusTimers() {
 function showStatus(message, type) {
   const el = document.getElementById('status-message');
   el.textContent = message;
-  el.classList.remove('is-fading');
   el.className = `status-message ${type}`;
   startStatusHideCycle(STATUS_VISIBLE_MS);
 }
@@ -1154,11 +1153,13 @@ function setViewMode(pageId, mode) {
     list.hidden = true;
     editor.hidden = false;
     resetTextareaFromRules(pageId);
+    // Only scroll when entering JSON view — preserve scroll position when
+    // returning to Form view so users keep their place in the rule list.
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   } else {
     editor.hidden = true;
     list.hidden = false;
   }
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function ensureRowsMode(pageId) {
