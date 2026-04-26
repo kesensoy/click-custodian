@@ -242,11 +242,24 @@ function applySaveButtonState(dirty) {
   }
 }
 
+let statusTimer = null;
+const STATUS_VISIBLE_MS = 4000;
+const STATUS_HOVER_RESTART_MS = 1500;
+
 function showStatus(message, type) {
   const el = document.getElementById('status-message');
   el.textContent = message;
   el.className = `status-message ${type}`;
-  setTimeout(() => { el.className = 'status-message'; }, 2600);
+  scheduleStatusHide(STATUS_VISIBLE_MS);
+}
+
+function scheduleStatusHide(ms) {
+  if (statusTimer) clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => {
+    const el = document.getElementById('status-message');
+    if (el) el.className = 'status-message';
+    statusTimer = null;
+  }, ms);
 }
 
 // ---------- Rendering ----------
@@ -427,6 +440,19 @@ function attachGlobalListeners() {
   document.getElementById('import-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'import-overlay') closeImportDialog();
   });
+
+  // Hover pauses the status toast; leaving restarts a shorter timer.
+  const statusEl = document.getElementById('status-message');
+  if (statusEl) {
+    statusEl.addEventListener('mouseenter', () => {
+      if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
+    });
+    statusEl.addEventListener('mouseleave', () => {
+      if (statusEl.classList.contains('success') || statusEl.classList.contains('error')) {
+        scheduleStatusHide(STATUS_HOVER_RESTART_MS);
+      }
+    });
+  }
 
   // Rule table event delegation (shared across both tabs)
   const content = document.getElementById('content');
