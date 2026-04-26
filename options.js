@@ -3,6 +3,11 @@
 
 // ---------- State ----------
 let rules = { tabCloseRules: [], buttonClickRules: [] };
+// savedSnapshot is a deep clone of `rules` at the last known on-disk state.
+// `recomputeDirtyState()` compares `rules` against this baseline so that an
+// edit-then-revert sequence correctly returns the page to "saved" rather than
+// remaining stuck in "unsaved changes" until the user explicitly hits Save.
+let savedSnapshot = { tabCloseRules: [], buttonClickRules: [] };
 let hasUnsavedChanges = false;
 let currentPage = 'page-close';
 // currentTheme holds the raw user PREFERENCE — 'light' | 'dark' | 'auto'.
@@ -16,6 +21,7 @@ let currentTheme = (() => {
 })();
 let currentPalette = document.documentElement.getAttribute('data-palette') || 'navy';
 let pendingImport = null;
+let pendingPlan = null;
 
 const VALID_PALETTES = ['navy', 'moss', 'graphite', 'ember'];
 const VALID_THEMES = ['light', 'dark', 'auto'];
@@ -37,6 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   attachGlobalListeners();
   attachJsonEditorListeners();
   restoreActivePage();
+  markClean();
 });
 
 window.addEventListener('beforeunload', (e) => {
@@ -51,6 +58,7 @@ async function loadConfig() {
     tabCloseRules: storage.tabCloseRules || [],
     buttonClickRules: storage.buttonClickRules || []
   };
+  savedSnapshot = cloneRules(rules);
   if (VALID_THEMES.includes(storage.theme) && storage.theme !== currentTheme) {
     currentTheme = storage.theme;
     try { localStorage.setItem('cc-theme', currentTheme); } catch (e) {}
@@ -111,11 +119,13 @@ function updatePalettePopoverActive() {
 }
 
 async function saveConfig() {
+  if (!hasUnsavedChanges) return;
   try {
     await chrome.storage.sync.set({
       tabCloseRules: rules.tabCloseRules,
       buttonClickRules: rules.buttonClickRules
     });
+    savedSnapshot = cloneRules(rules);
     markClean();
     showStatus('Configuration saved', 'success');
   } catch (error) {
@@ -166,12 +176,49 @@ function generateDefaultRuleName(urlPattern) {
   } catch (e) { return 'example.com'; }
 }
 
-function markDirty() {
-  hasUnsavedChanges = true;
-  const info = document.getElementById('actionbar-info');
-  const text = document.getElementById('actionbar-info-text');
-  info.classList.remove('is-clean');
-  text.textContent = 'unsaved changes';
+function cloneRules(src) {
+  return {
+    tabCloseRules: src.tabCloseRules.map(r => ({ ...r })),
+    buttonClickRules: src.buttonClickRules.map(r => ({ ...r }))
+  };
+}
+
+// Structural equality for the rules payload. Array order is meaningful
+// (it is the user-facing display order), so we compare positionally rather
+// than sorting. Field order within a rule object is normalized via sorted
+// JSON stringification so that {a:1,b:2} and {b:2,a:1} compare equal.
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
+  const keys = Object.keys(value).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + stableStringify(value[k])).join(',') + '}';
+}
+
+function rulesEqual(a, b) {
+  if (!a || !b) return a === b;
+  if (a.tabCloseRules.length !== b.tabCloseRules.length) return false;
+  if (a.buttonClickRules.length !== b.buttonClickRules.length) return false;
+  for (let i = 0; i < a.tabCloseRules.length; i++) {
+    if (stableStringify(a.tabCloseRules[i]) !== stableStringify(b.tabCloseRules[i])) return false;
+  }
+  for (let i = 0; i < a.buttonClickRules.length; i++) {
+    if (stableStringify(a.buttonClickRules[i]) !== stableStringify(b.buttonClickRules[i])) return false;
+  }
+  return true;
+}
+
+function recomputeDirtyState() {
+  const dirty = !rulesEqual(rules, savedSnapshot);
+  if (dirty) {
+    hasUnsavedChanges = true;
+    const info = document.getElementById('actionbar-info');
+    const text = document.getElementById('actionbar-info-text');
+    info.classList.remove('is-clean');
+    text.textContent = 'unsaved changes';
+    applySaveButtonState(true);
+  } else {
+    markClean();
+  }
 }
 
 function markClean() {
@@ -180,13 +227,55 @@ function markClean() {
   const text = document.getElementById('actionbar-info-text');
   info.classList.add('is-clean');
   text.textContent = 'saved';
+  applySaveButtonState(false);
+}
+
+function applySaveButtonState(dirty) {
+  const btn = document.getElementById('save-config');
+  if (!btn) return;
+  btn.classList.toggle('primary', dirty);
+  btn.classList.toggle('ghost', !dirty);
+  if (dirty) {
+    btn.removeAttribute('aria-disabled');
+  } else {
+    btn.setAttribute('aria-disabled', 'true');
+  }
+}
+
+// Toast lifecycle: VISIBLE_MS at full opacity → FADE_MS slowly fading out
+// (still hoverable). Hover at any point cancels both timers and pops it
+// back to full opacity; mouseleave restarts a shorter HOVER_RESTART_MS
+// visible window before fading again.
+const STATUS_VISIBLE_MS = 3500;
+const STATUS_FADE_MS = 2000;
+const STATUS_HOVER_RESTART_MS = 1500;
+let statusFadeTimer = null;
+let statusClearTimer = null;
+
+function clearStatusTimers() {
+  if (statusFadeTimer) { clearTimeout(statusFadeTimer); statusFadeTimer = null; }
+  if (statusClearTimer) { clearTimeout(statusClearTimer); statusClearTimer = null; }
 }
 
 function showStatus(message, type) {
   const el = document.getElementById('status-message');
   el.textContent = message;
   el.className = `status-message ${type}`;
-  setTimeout(() => { el.className = 'status-message'; }, 2600);
+  startStatusHideCycle(STATUS_VISIBLE_MS);
+}
+
+function startStatusHideCycle(visibleMs) {
+  clearStatusTimers();
+  statusFadeTimer = setTimeout(() => {
+    const el = document.getElementById('status-message');
+    if (el) el.classList.add('is-fading');
+    statusFadeTimer = null;
+    statusClearTimer = setTimeout(() => {
+      const el = document.getElementById('status-message');
+      if (el) el.className = 'status-message';
+      statusClearTimer = null;
+    }, STATUS_FADE_MS);
+  }, visibleMs);
 }
 
 // ---------- Rendering ----------
@@ -357,9 +446,32 @@ function attachGlobalListeners() {
   document.getElementById('import-cancel').addEventListener('click', closeImportDialog);
   document.getElementById('import-merge').addEventListener('click', () => commitImport('merge'));
   document.getElementById('import-replace').addEventListener('click', () => commitImport('replace'));
+  document.getElementById('import-conflict-cancel').addEventListener('click', closeImportDialog);
+  document.getElementById('import-conflict-apply').addEventListener('click', applyConflictPlan);
+  document.getElementById('import-bulk-skip').addEventListener('click', () => setAllResolutions('skip'));
+  document.getElementById('import-bulk-overwrite').addEventListener('click', () => setAllResolutions('overwrite'));
+  const conflictList = document.getElementById('import-conflict-list');
+  conflictList.addEventListener('click', handleConflictListClick);
+  conflictList.addEventListener('change', handleConflictListChange);
   document.getElementById('import-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'import-overlay') closeImportDialog();
   });
+
+  // Hover cancels any pending fade/clear and pops the toast back to full
+  // opacity; mouseleave starts a fresh shorter visible window. Works whether
+  // the toast is fully visible OR partway through fading out.
+  const statusEl = document.getElementById('status-message');
+  if (statusEl) {
+    statusEl.addEventListener('mouseenter', () => {
+      clearStatusTimers();
+      statusEl.classList.remove('is-fading');
+    });
+    statusEl.addEventListener('mouseleave', () => {
+      if (statusEl.classList.contains('success') || statusEl.classList.contains('error')) {
+        startStatusHideCycle(STATUS_HOVER_RESTART_MS);
+      }
+    });
+  }
 
   // Rule table event delegation (shared across both tabs)
   const content = document.getElementById('content');
@@ -434,7 +546,7 @@ function handleTableChange(e) {
       value = clampDelay(value, 0, 60000, kind === 'user-close' ? 3000 : 1000);
     }
     arr[index][field] = value;
-    markDirty();
+    recomputeDirtyState();
   }
 }
 
@@ -462,7 +574,7 @@ function toggleUserRule(toggleEl) {
   toggleEl.setAttribute('aria-checked', nowEnabled ? 'true' : 'false');
   row.classList.toggle('is-disabled', !nowEnabled);
   arr[index].enabled = nowEnabled;
-  markDirty();
+  recomputeDirtyState();
 }
 
 function deleteUserRule(row) {
@@ -472,7 +584,7 @@ function deleteUserRule(row) {
   const index = Number(row.dataset.userIndex);
   if (kind === 'user-close') rules.tabCloseRules.splice(index, 1);
   else if (kind === 'user-click') rules.buttonClickRules.splice(index, 1);
-  markDirty();
+  recomputeDirtyState();
   renderAll();
 }
 
@@ -492,7 +604,7 @@ function addCloseRule() {
     enabled: true,
     delay: 3000
   });
-  markDirty();
+  recomputeDirtyState();
   renderCloseRules();
   updateNavCounts();
   activatePage('page-close');
@@ -512,7 +624,7 @@ function addClickRule() {
     enabled: true,
     delay: 500
   });
-  markDirty();
+  recomputeDirtyState();
   renderClickRules();
   updateNavCounts();
   activatePage('page-click');
@@ -545,7 +657,6 @@ function filterRules(pageId, query) {
 
 // ---------- Reset / Import / Export ----------
 async function resetConfig() {
-  if (!confirm('Reset to defaults? This deletes your current rules and loads the bundled defaults.')) return;
   try {
     const response = await fetch(chrome.runtime.getURL('seed-examples.json'));
     const seed = await response.json();
@@ -553,14 +664,10 @@ async function resetConfig() {
       tabCloseRules: seed.tabCloseRules || [],
       buttonClickRules: seed.buttonClickRules || []
     };
-    await chrome.storage.sync.set({
-      tabCloseRules: rules.tabCloseRules,
-      buttonClickRules: rules.buttonClickRules
-    });
-    markClean();
     renderAll();
     refreshActiveJsonViews();
-    showStatus('Reset to defaults', 'success');
+    recomputeDirtyState();
+    showStatus('Loaded defaults — remember to save', 'success');
   } catch (error) {
     showStatus('Failed to load examples: ' + error.message, 'error');
   }
@@ -606,37 +713,311 @@ function openImportDialog(imported) {
   document.getElementById('import-current').textContent =
     `You currently have:\n  · ${rules.tabCloseRules.length} tab-close rule${rules.tabCloseRules.length === 1 ? '' : 's'}\n  · ${rules.buttonClickRules.length} button-click rule${rules.buttonClickRules.length === 1 ? '' : 's'}`;
   const total = imported.tabCloseRules.length + imported.buttonClickRules.length;
-  document.getElementById('import-merge').textContent = `Merge — add ${total} rule${total === 1 ? '' : 's'}`;
+  document.getElementById('import-merge').textContent = `Merge ${total} rule${total === 1 ? '' : 's'}`;
   document.getElementById('import-overlay').classList.add('open');
 }
 
 function closeImportDialog() {
-  document.getElementById('import-overlay').classList.remove('open');
+  const overlay = document.getElementById('import-overlay');
+  overlay.classList.remove('open');
+  document.getElementById('import-card').classList.remove('is-conflict');
+  document.getElementById('import-choice-view').hidden = false;
+  document.getElementById('import-conflict-view').hidden = true;
+  document.getElementById('import-title').textContent = 'Import rules';
   pendingImport = null;
+  pendingPlan = null;
+}
+
+// URL-first dedup signature:
+// - tab-close: urlPattern
+// - button-click: urlPattern + selector + buttonText (selector+text scope WHICH button)
+// matchType is NOT part of the signature — same URL with different match type collides.
+function conflictKey(rule, kind) {
+  const base = rule.urlPattern || '';
+  if (kind === 'buttonClick') {
+    return `${base} ${rule.selector || ''} ${rule.buttonText || ''}`;
+  }
+  return base;
+}
+
+const DIFF_FIELDS = ['name', 'matchType', 'delay', 'enabled'];
+
+function fieldValue(rule, field) {
+  if (field === 'enabled') return rule.enabled !== false;
+  if (field === 'matchType') return rule.matchType || 'glob';
+  if (field === 'delay') return Number(rule.delay) || 0;
+  return rule[field] ?? '';
+}
+
+function diffFields(existing, incoming) {
+  return DIFF_FIELDS.filter(f => fieldValue(existing, f) !== fieldValue(incoming, f));
+}
+
+function buildConflictPlan(imported, existing) {
+  const conflicts = [];
+  const identicals = [];
+  const additions = { tabCloseRules: [], buttonClickRules: [] };
+  const existingKeys = {
+    tabClose: new Map(existing.tabCloseRules.map(r => [conflictKey(r, 'tabClose'), r])),
+    buttonClick: new Map(existing.buttonClickRules.map(r => [conflictKey(r, 'buttonClick'), r]))
+  };
+  const classify = (incoming, kind, addBucket) => {
+    const map = kind === 'tabClose' ? existingKeys.tabClose : existingKeys.buttonClick;
+    const existingMatch = map.get(conflictKey(incoming, kind));
+    if (!existingMatch) {
+      addBucket.push(incoming);
+      return;
+    }
+    const diff = diffFields(existingMatch, incoming);
+    if (diff.length === 0) {
+      identicals.push({ kind, existing: existingMatch, incoming });
+    } else {
+      conflicts.push({ kind, existing: existingMatch, incoming, diff, resolution: 'skip' });
+    }
+  };
+  for (const r of imported.tabCloseRules) classify(r, 'tabClose', additions.tabCloseRules);
+  for (const r of imported.buttonClickRules) classify(r, 'buttonClick', additions.buttonClickRules);
+  return { conflicts, identicals, additions };
 }
 
 function commitImport(mode) {
   if (!pendingImport) return;
-  if (mode === 'merge') {
-    const reIded = {
-      tabCloseRules: pendingImport.tabCloseRules.map(r => ({ ...r, id: generateId() })),
-      buttonClickRules: pendingImport.buttonClickRules.map(r => ({ ...r, id: generateId() }))
-    };
-    rules.tabCloseRules.push(...reIded.tabCloseRules);
-    rules.buttonClickRules.push(...reIded.buttonClickRules);
-  } else if (mode === 'replace') {
+  if (mode === 'replace') {
     const existingTotal = rules.tabCloseRules.length + rules.buttonClickRules.length;
     if (existingTotal > 0) {
       if (!confirm(`This deletes your ${existingTotal} existing rule${existingTotal === 1 ? '' : 's'}. Continue?`)) return;
     }
-    rules.tabCloseRules = pendingImport.tabCloseRules;
-    rules.buttonClickRules = pendingImport.buttonClickRules;
+    rules.tabCloseRules = pendingImport.tabCloseRules.map(r => ({ ...r, id: generateId() }));
+    rules.buttonClickRules = pendingImport.buttonClickRules.map(r => ({ ...r, id: generateId() }));
+    finishImport('replaced');
+    return;
   }
-  markDirty();
+  // mode === 'merge'
+  const plan = buildConflictPlan(pendingImport, rules);
+  if (plan.conflicts.length === 0) {
+    appendAdditions(plan.additions);
+    const added = plan.additions.tabCloseRules.length + plan.additions.buttonClickRules.length;
+    const counts = { added };
+    if (plan.identicals.length > 0) counts.identical = plan.identicals.length;
+    finishImport('merged', counts);
+    return;
+  }
+  pendingPlan = plan;
+  showConflictView(plan);
+}
+
+function appendAdditions(additions) {
+  rules.tabCloseRules.push(...additions.tabCloseRules.map(r => ({ ...r, id: generateId() })));
+  rules.buttonClickRules.push(...additions.buttonClickRules.map(r => ({ ...r, id: generateId() })));
+}
+
+function finishImport(verb, counts) {
+  recomputeDirtyState();
   renderAll();
   refreshActiveJsonViews();
   closeImportDialog();
-  showStatus(`Rules ${mode === 'merge' ? 'merged' : 'replaced'} — remember to save`, 'success');
+  let msg = `Rules ${verb} — remember to save`;
+  if (counts) {
+    const parts = [];
+    if (counts.added != null) parts.push(`${counts.added} added`);
+    if (counts.overwritten != null) parts.push(`${counts.overwritten} overwritten`);
+    if (counts.skipped != null) parts.push(`${counts.skipped} skipped`);
+    if (counts.identical != null) parts.push(`${counts.identical} identical skipped`);
+    if (parts.length) msg = `Rules ${verb} (${parts.join(', ')}) — remember to save`;
+  }
+  showStatus(msg, 'success');
+}
+
+function showConflictView(plan) {
+  document.getElementById('import-card').classList.add('is-conflict');
+  document.getElementById('import-choice-view').hidden = true;
+  document.getElementById('import-conflict-view').hidden = false;
+  document.getElementById('import-title').textContent = 'Resolve conflicts';
+  const n = plan.conflicts.length;
+  const addCount = plan.additions.tabCloseRules.length + plan.additions.buttonClickRules.length;
+  const summaryParts = [`${n} imported rule${n === 1 ? '' : 's'} differ${n === 1 ? 's' : ''} from an existing rule with the same URL.`];
+  if (addCount > 0) summaryParts.push(`${addCount} new rule${addCount === 1 ? '' : 's'} will be added regardless.`);
+  document.getElementById('import-conflict-summary').textContent = summaryParts.join(' ');
+  renderIdenticalBanner(plan.identicals);
+  const list = document.getElementById('import-conflict-list');
+  list.innerHTML = plan.conflicts.map((c, i) => renderConflictRow(c, i)).join('');
+  document.getElementById('import-bulk-skip').classList.remove('is-active');
+  document.getElementById('import-bulk-overwrite').classList.remove('is-active');
+}
+
+function renderIdenticalBanner(identicals) {
+  const banner = document.getElementById('import-identical-banner');
+  if (!banner) return;
+  if (!identicals || identicals.length === 0) {
+    banner.hidden = true;
+    banner.innerHTML = '';
+    return;
+  }
+  banner.hidden = false;
+  const n = identicals.length;
+  const items = identicals.map(({ existing, kind }) => {
+    const k = kind === 'tabClose' ? 'Tab close' : 'Button click';
+    const name = existing.name || '(unnamed)';
+    return `<li><span class="cc-kind">${escapeHTML(k)}</span> <span class="cc-name">${escapeHTML(name)}</span> <span class="cc-trigger">${escapeHTML(existing.urlPattern || '')}</span></li>`;
+  }).join('');
+  banner.innerHTML = `
+    <details>
+      <summary>${n} imported rule${n === 1 ? ' is' : 's are'} identical to existing rule${n === 1 ? '' : 's'} — will be skipped.</summary>
+      <div class="cc-identical-actions">
+        <button class="btn ghost sm" id="import-identical-force" type="button">Import anyway as duplicate${n === 1 ? '' : 's'}</button>
+      </div>
+      <ul class="cc-identical-list">${items}</ul>
+    </details>`;
+  const forceBtn = document.getElementById('import-identical-force');
+  if (forceBtn) forceBtn.addEventListener('click', forceImportIdenticals);
+}
+
+function forceImportIdenticals() {
+  if (!pendingPlan || pendingPlan.identicals.length === 0) return;
+  for (const { kind, incoming } of pendingPlan.identicals) {
+    const bucket = kind === 'tabClose'
+      ? pendingPlan.additions.tabCloseRules
+      : pendingPlan.additions.buttonClickRules;
+    bucket.push(incoming);
+  }
+  pendingPlan.identicals = [];
+  renderIdenticalBanner(pendingPlan.identicals);
+}
+
+function renderConflictRow(conflict, idx) {
+  const kindLabel = conflict.kind === 'tabClose' ? 'Tab close' : 'Button click';
+  const trigger = describeTrigger(conflict.incoming, conflict.kind);
+  const diffSet = new Set(conflict.diff || []);
+  return `
+    <div class="import-conflict-row" data-idx="${idx}" data-resolution="${escapeHTML(conflict.resolution)}">
+      <div class="cc-meta">
+        <span class="cc-kind">${escapeHTML(kindLabel)}</span>
+        <span class="cc-trigger">${escapeHTML(trigger)}</span>
+      </div>
+      <div class="cc-versions">
+        ${renderConflictSide('existing', 'skip', 'Existing', conflict.existing, conflict.kind, diffSet, conflict.resolution, idx)}
+        ${renderConflictSide('incoming', 'overwrite', 'Incoming', conflict.incoming, conflict.kind, diffSet, conflict.resolution, idx)}
+      </div>
+      <div class="cc-toggle" role="radiogroup" aria-label="${escapeHTML(kindLabel)} conflict resolution">
+        <label><input type="radio" name="cc-res-${idx}" value="skip" ${conflict.resolution === 'skip' ? 'checked' : ''}> Skip</label>
+        <label><input type="radio" name="cc-res-${idx}" value="overwrite" ${conflict.resolution === 'overwrite' ? 'checked' : ''}> Overwrite</label>
+      </div>
+    </div>`;
+}
+
+function renderConflictSide(slot, value, label, rule, kind, diffSet, resolution, idx) {
+  const cls = (field) => diffSet.has(field) ? 'cc-field is-diff' : 'cc-field';
+  const isSelected = resolution === value;
+  const name = rule.name || '(unnamed)';
+  const matchType = fieldValue(rule, 'matchType');
+  const delay = fieldValue(rule, 'delay');
+  const enabled = fieldValue(rule, 'enabled');
+  const delayLabel = kind === 'tabClose' ? `${delay}ms countdown` : `${delay}ms delay`;
+  const enabledLabel = enabled ? 'enabled' : 'disabled';
+  return `
+    <button type="button"
+            class="cc-side cc-${slot} ${isSelected ? 'is-selected' : ''}"
+            data-cc-res-target="${idx}"
+            data-cc-res-value="${value}"
+            aria-pressed="${isSelected}">
+      <span class="cc-label">${escapeHTML(label)}</span>
+      <span class="cc-name ${diffSet.has('name') ? 'is-diff' : ''}">${escapeHTML(name)}</span>
+      <div class="cc-fields">
+        <span class="${cls('matchType')}">${escapeHTML(matchType)}</span>
+        <span class="cc-sep">·</span>
+        <span class="${cls('delay')}">${escapeHTML(delayLabel)}</span>
+        <span class="cc-sep">·</span>
+        <span class="${cls('enabled')}">${escapeHTML(enabledLabel)}</span>
+      </div>
+    </button>`;
+}
+
+function describeTrigger(rule, kind) {
+  const url = rule.urlPattern || '(no pattern)';
+  if (kind === 'buttonClick') {
+    const sel = rule.selector ? ` · ${rule.selector}` : '';
+    const txt = rule.buttonText ? ` · "${rule.buttonText}"` : '';
+    return url + sel + txt;
+  }
+  return url;
+}
+
+function setRowResolution(idx, value) {
+  const list = document.getElementById('import-conflict-list');
+  const row = list.querySelector(`.import-conflict-row[data-idx="${idx}"]`);
+  if (!row) return;
+  row.dataset.resolution = value;
+  list.querySelectorAll(`input[name="cc-res-${idx}"]`).forEach(input => {
+    input.checked = input.value === value;
+  });
+  row.querySelectorAll('.cc-side').forEach(side => {
+    const isSel = side.dataset.ccResValue === value;
+    side.classList.toggle('is-selected', isSel);
+    side.setAttribute('aria-pressed', String(isSel));
+  });
+  updateBulkActiveState();
+}
+
+function updateBulkActiveState() {
+  const list = document.getElementById('import-conflict-list');
+  const skipBtn = document.getElementById('import-bulk-skip');
+  const overwriteBtn = document.getElementById('import-bulk-overwrite');
+  if (!list || !skipBtn || !overwriteBtn) return;
+  const rows = list.querySelectorAll('.import-conflict-row');
+  let allSkip = rows.length > 0;
+  let allOverwrite = rows.length > 0;
+  rows.forEach(row => {
+    const res = row.dataset.resolution;
+    if (res !== 'skip') allSkip = false;
+    if (res !== 'overwrite') allOverwrite = false;
+  });
+  skipBtn.classList.toggle('is-active', allSkip);
+  overwriteBtn.classList.toggle('is-active', allOverwrite);
+}
+
+function handleConflictListClick(e) {
+  const sideBtn = e.target.closest('.cc-side[data-cc-res-target]');
+  if (!sideBtn) return;
+  e.preventDefault();
+  setRowResolution(sideBtn.dataset.ccResTarget, sideBtn.dataset.ccResValue);
+}
+
+function handleConflictListChange(e) {
+  const radio = e.target.closest('input[type="radio"][name^="cc-res-"]');
+  if (!radio || !radio.checked) return;
+  const idx = radio.name.replace('cc-res-', '');
+  setRowResolution(idx, radio.value);
+}
+
+function setAllResolutions(value) {
+  if (!pendingPlan) return;
+  pendingPlan.conflicts.forEach((_, i) => setRowResolution(i, value));
+}
+
+function applyConflictPlan() {
+  if (!pendingPlan) return;
+  const list = document.getElementById('import-conflict-list');
+  pendingPlan.conflicts.forEach((c, i) => {
+    const checked = list.querySelector(`input[name="cc-res-${i}"]:checked`);
+    c.resolution = checked ? checked.value : 'skip';
+  });
+  let overwritten = 0;
+  let skipped = 0;
+  for (const c of pendingPlan.conflicts) {
+    if (c.resolution === 'overwrite') {
+      const arr = c.kind === 'tabClose' ? rules.tabCloseRules : rules.buttonClickRules;
+      const idx = arr.findIndex(r => r.id === c.existing.id);
+      if (idx >= 0) {
+        arr[idx] = { ...c.incoming, id: c.existing.id };
+        overwritten++;
+      }
+    } else {
+      skipped++;
+    }
+  }
+  appendAdditions(pendingPlan.additions);
+  const added = pendingPlan.additions.tabCloseRules.length + pendingPlan.additions.buttonClickRules.length;
+  finishImport('merged', { added, overwritten, skipped });
 }
 
 // ---------- Overlay ----------
@@ -708,6 +1089,7 @@ function attachJsonEditorListeners() {
     const editor = document.getElementById(cfg.editorId);
     if (!editor) return;
     const textarea = editor.querySelector('[data-role="textarea"]');
+    const overlay = editor.querySelector('.json-editor-overlay');
     const applyBtn = editor.querySelector('[data-role="apply"]');
     const discardBtn = editor.querySelector('[data-role="discard"]');
 
@@ -716,6 +1098,13 @@ function attachJsonEditorListeners() {
       state.dirtyInView = textarea.value !== state.originalSerialized;
       updateJsonStatus(editor, state.dirtyInView);
       livePreviewJson(editor, textarea.value);
+      paintOverlay(editor, textarea.value);
+    });
+
+    textarea.addEventListener('scroll', () => {
+      if (!overlay) return;
+      overlay.scrollTop = textarea.scrollTop;
+      overlay.scrollLeft = textarea.scrollLeft;
     });
 
     textarea.addEventListener('keydown', (e) => {
@@ -764,6 +1153,9 @@ function setViewMode(pageId, mode) {
     list.hidden = true;
     editor.hidden = false;
     resetTextareaFromRules(pageId);
+    // Only scroll when entering JSON view — preserve scroll position when
+    // returning to Form view so users keep their place in the rule list.
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   } else {
     editor.hidden = true;
     list.hidden = false;
@@ -774,6 +1166,8 @@ function ensureRowsMode(pageId) {
   const state = jsonView[pageId];
   if (!state || state.mode === 'rows') return true;
   if (state.dirtyInView && !confirm('Discard unapplied JSON edits?')) return false;
+  // Pre-clear so setViewMode's own dirty-check (line ~1136) doesn't re-prompt.
+  state.dirtyInView = false;
   setViewMode(pageId, 'rows');
   return true;
 }
@@ -788,6 +1182,13 @@ function resetTextareaFromRules(pageId) {
   jsonView[pageId].dirtyInView = false;
   clearJsonError(editor);
   updateJsonStatus(editor, false);
+  paintOverlay(editor, serialized);
+}
+
+function paintOverlay(editor, text) {
+  const code = editor.querySelector('[data-role="overlay-code"]');
+  if (!code || typeof window.highlightJSON !== 'function') return;
+  code.innerHTML = window.highlightJSON(text);
 }
 
 function refreshActiveJsonViews() {
@@ -832,15 +1233,65 @@ function showJsonError(editor, message) {
 
 function formatParseError(err, text) {
   const msg = err.message || String(err);
-  const posMatch = msg.match(/position\s+(\d+)/i);
-  if (posMatch) {
-    const pos = Number(posMatch[1]);
-    const before = text.slice(0, pos);
-    const line = before.split('\n').length;
-    const col = pos - (before.lastIndexOf('\n') + 1) + 1;
-    return `${msg}\n→ line ${line}, column ${col}`;
+  let line, col;
+  const setLineColFromPos = (pos) => {
+    const clamped = Math.max(0, Math.min(pos, text.length));
+    const before = text.slice(0, clamped);
+    line = before.split('\n').length;
+    col = clamped - (before.lastIndexOf('\n') + 1) + 1;
+  };
+  // Three V8 formats in the wild — try them in order of specificity:
+  // 1. "(line N column M)" — modern Chrome includes it directly.
+  // 2. "position N" — older/shorter messages.
+  // 3. "Unexpected token X, "...SNIPPET..." is not valid JSON" — newest Chrome
+  //    drops position entirely, just gives a quoted context window. Search for
+  //    that snippet in the text to recover an approximate offset.
+  const lineColMatch = msg.match(/\(line\s+(\d+)\s+column\s+(\d+)\)/i);
+  if (lineColMatch) {
+    line = Number(lineColMatch[1]);
+    col = Number(lineColMatch[2]);
+  } else {
+    const posMatch = msg.match(/position\s+(\d+)/i);
+    if (posMatch) {
+      setLineColFromPos(Number(posMatch[1]));
+    } else {
+      // V8 wraps the snippet as `...<quoted>...` for truncated context, or
+      // `<quoted>` outright for short inputs. Anchor on the ellipses first.
+      let snippet = null;
+      const ellipsisMatch = msg.match(/(?:\.\.\.|…)([\s\S]+?)(?:\.\.\.|…)\s+is not valid JSON/);
+      if (ellipsisMatch) {
+        snippet = ellipsisMatch[1];
+      } else {
+        const wholeMatch = msg.match(/"([\s\S]+?)"\s+is not valid JSON/);
+        if (wholeMatch) snippet = wholeMatch[1];
+      }
+      if (snippet) {
+        // Strip V8's wrapping quote characters if they're around the snippet body.
+        if (snippet.startsWith('"') && snippet.endsWith('"')) snippet = snippet.slice(1, -1);
+        if (snippet.length >= 3) {
+          const idx = text.indexOf(snippet);
+          if (idx >= 0) setLineColFromPos(idx);
+        }
+      }
+    }
   }
-  return msg;
+  if (line == null) return msg;
+
+  // Show the offending line with a caret pointer underneath the column.
+  const lines = text.split('\n');
+  const raw = lines[line - 1] || '';
+  const max = 80;
+  let snippet = raw;
+  let pointerCol = col;
+  if (raw.length > max) {
+    // Window the snippet around the column so the caret stays visible.
+    const start = Math.max(0, col - Math.floor(max / 2));
+    const end = Math.min(raw.length, start + max);
+    snippet = (start > 0 ? '…' : '') + raw.slice(start, end) + (end < raw.length ? '…' : '');
+    pointerCol = col - start + (start > 0 ? 1 : 0);
+  }
+  const pointer = ' '.repeat(Math.max(0, pointerCol - 1)) + '^';
+  return `${msg}\n→ line ${line}, column ${col}\n  ${snippet}\n  ${pointer}`;
 }
 
 function applyJson(pageId) {
@@ -873,7 +1324,7 @@ function applyJson(pageId) {
   updateNavCounts();
 
   resetTextareaFromRules(pageId);
-  markDirty();
+  recomputeDirtyState();
   showStatus('JSON applied — remember to save', 'success');
 }
 

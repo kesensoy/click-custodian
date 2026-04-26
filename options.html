@@ -129,7 +129,10 @@
           <span class="json-editor-label">Editing <code>tabCloseRules</code> as JSON</span>
           <span class="json-editor-status" data-role="status"></span>
         </div>
-        <textarea class="json-editor-text" spellcheck="false" autocorrect="off" autocapitalize="off" data-role="textarea" aria-label="tabCloseRules JSON editor"></textarea>
+        <div class="je-stack">
+          <pre class="json-editor-overlay" aria-hidden="true"><code data-role="overlay-code"></code></pre>
+          <textarea class="json-editor-text" spellcheck="false" autocorrect="off" autocapitalize="off" data-role="textarea" aria-label="tabCloseRules JSON editor"></textarea>
+        </div>
         <div class="json-editor-error" data-role="error" hidden></div>
         <div class="json-editor-actions">
           <button class="btn ghost" data-role="discard">Discard</button>
@@ -169,7 +172,10 @@
           <span class="json-editor-label">Editing <code>buttonClickRules</code> as JSON</span>
           <span class="json-editor-status" data-role="status"></span>
         </div>
-        <textarea class="json-editor-text" spellcheck="false" autocorrect="off" autocapitalize="off" data-role="textarea" aria-label="buttonClickRules JSON editor"></textarea>
+        <div class="je-stack">
+          <pre class="json-editor-overlay" aria-hidden="true"><code data-role="overlay-code"></code></pre>
+          <textarea class="json-editor-text" spellcheck="false" autocorrect="off" autocapitalize="off" data-role="textarea" aria-label="buttonClickRules JSON editor"></textarea>
+        </div>
         <div class="json-editor-error" data-role="error" hidden></div>
         <div class="json-editor-actions">
           <button class="btn ghost" data-role="discard">Discard</button>
@@ -220,12 +226,12 @@
 </div>
 
 <div class="overlay" id="import-overlay" role="dialog" aria-modal="true" aria-label="Import rules">
-  <div class="overlay-card">
+  <div class="overlay-card" id="import-card">
     <header>
-      <h3>Import rules</h3>
+      <h3 id="import-title">Import rules</h3>
       <button class="close" id="import-overlay-close">esc</button>
     </header>
-    <div class="import-body">
+    <div class="import-body" id="import-choice-view">
       <p class="import-summary" id="import-summary"></p>
       <p class="import-current" id="import-current"></p>
       <div class="import-actions">
@@ -234,9 +240,24 @@
         <button class="btn ghost" id="import-cancel">Cancel</button>
       </div>
     </div>
+    <div class="import-body import-conflict-view" id="import-conflict-view" hidden>
+      <p class="import-summary" id="import-conflict-summary"></p>
+      <div class="import-identical-banner" id="import-identical-banner" hidden></div>
+      <div class="import-bulk">
+        <span class="import-bulk-label">Bulk:</span>
+        <button class="btn ghost sm" id="import-bulk-skip" type="button">Skip all</button>
+        <button class="btn ghost sm" id="import-bulk-overwrite" type="button">Overwrite all</button>
+      </div>
+      <div class="import-conflict-list" id="import-conflict-list"></div>
+      <div class="import-actions">
+        <button class="btn primary" id="import-conflict-apply">Apply</button>
+        <button class="btn ghost" id="import-conflict-cancel">Cancel</button>
+      </div>
+    </div>
   </div>
 </div>
 
+<script src="json-highlight.js"></script>
 <script src="options.js"></script>
 </body>
 </html>

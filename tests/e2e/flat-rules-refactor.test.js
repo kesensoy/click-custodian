@@ -435,7 +435,7 @@ test.describe('Options UI — import/export/reset', () => {
     await page.close();
   });
 
-  test('reset to examples restores seed rules', async () => {
+  test('reset to examples loads seed into UI but does not auto-save', async () => {
     await writeStorage(env.context, {
       tabCloseRules: [
         { id: 'custom', name: 'Custom', urlPattern: 'https://custom/*', matchType: 'glob', delay: 3000, enabled: true }
@@ -445,16 +445,30 @@ test.describe('Options UI — import/export/reset', () => {
 
     const page = await openOptions();
 
-    page.on('dialog', dialog => dialog.accept());
     await page.click('#reset-config');
 
-    // Wait for toast success
+    // Toast acknowledges the reset and prompts saving.
     await page.waitForFunction(() => {
       const el = document.getElementById('status-message');
-      return el && /Reset to default/i.test(el.textContent);
+      return el && /remember to save/i.test(el.textContent);
     }, { timeout: 3000 });
 
-    const storage = await readStorage(env.context);
+    // Storage is UNCHANGED — reset is a UI-only mutation now.
+    let storage = await readStorage(env.context);
+    expect(storage.tabCloseRules.map(r => r.name)).toEqual(['Custom']);
+
+    // Action bar reports unsaved changes.
+    const dirtyText = await page.textContent('#actionbar-info-text');
+    expect(dirtyText).toBe('unsaved changes');
+
+    // Save → storage now reflects the seed.
+    await page.click('#save-config');
+    await page.waitForFunction(() => {
+      const el = document.getElementById('actionbar-info-text');
+      return el && el.textContent === 'saved';
+    }, { timeout: 3000 });
+
+    storage = await readStorage(env.context);
     const names = storage.tabCloseRules.map(r => r.name);
     expect(names).toContain('Localhost OAuth callback');
     expect(names).toContain('Azure AD device code approval');
