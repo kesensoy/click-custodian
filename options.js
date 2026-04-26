@@ -247,7 +247,7 @@ function applySaveButtonState(dirty) {
 // back to full opacity; mouseleave restarts a shorter HOVER_RESTART_MS
 // visible window before fading again.
 const STATUS_VISIBLE_MS = 3500;
-const STATUS_FADE_MS = 1500;
+const STATUS_FADE_MS = 2000;
 const STATUS_HOVER_RESTART_MS = 1500;
 let statusFadeTimer = null;
 let statusClearTimer = null;
