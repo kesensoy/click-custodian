@@ -788,8 +788,8 @@ function commitImport(mode) {
     if (existingTotal > 0) {
       if (!confirm(`This deletes your ${existingTotal} existing rule${existingTotal === 1 ? '' : 's'}. Continue?`)) return;
     }
-    rules.tabCloseRules = pendingImport.tabCloseRules;
-    rules.buttonClickRules = pendingImport.buttonClickRules;
+    rules.tabCloseRules = pendingImport.tabCloseRules.map(r => ({ ...r, id: generateId() }));
+    rules.buttonClickRules = pendingImport.buttonClickRules.map(r => ({ ...r, id: generateId() }));
     finishImport('replaced');
     return;
   }
@@ -863,7 +863,7 @@ function renderIdenticalBanner(identicals) {
   }).join('');
   banner.innerHTML = `
     <details>
-      <summary>${n} imported rule${n === 1 ? ' is' : 's are'} byte-identical to existing rule${n === 1 ? '' : 's'} — will be skipped.</summary>
+      <summary>${n} imported rule${n === 1 ? ' is' : 's are'} identical to existing rule${n === 1 ? '' : 's'} — will be skipped.</summary>
       <div class="cc-identical-actions">
         <button class="btn ghost sm" id="import-identical-force" type="button">Import anyway as duplicate${n === 1 ? '' : 's'}</button>
       </div>
@@ -1165,6 +1165,8 @@ function ensureRowsMode(pageId) {
   const state = jsonView[pageId];
   if (!state || state.mode === 'rows') return true;
   if (state.dirtyInView && !confirm('Discard unapplied JSON edits?')) return false;
+  // Pre-clear so setViewMode's own dirty-check (line ~1136) doesn't re-prompt.
+  state.dirtyInView = false;
   setViewMode(pageId, 'rows');
   return true;
 }
