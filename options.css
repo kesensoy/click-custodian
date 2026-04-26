@@ -491,7 +491,7 @@ select.inline { appearance:none; -webkit-appearance:none; padding-right:22px; ba
 .import-identical-banner summary::-webkit-details-marker { color:var(--muted); }
 .cc-identical-actions { display:flex; justify-content:flex-end; margin:6px 0 8px; }
 .cc-identical-actions .btn.sm { height:24px; padding:0 10px; font-size:12px; }
-.cc-identical-list { margin:0; padding:0 0 0 18px; display:flex; flex-direction:column; gap:4px; }
+.cc-identical-list { margin:0; padding:6px 0 6px 18px; display:flex; flex-direction:column; gap:4px; max-height:30vh; overflow-y:auto; }
 .cc-identical-list li { font-family:var(--mono); font-size:11.5px; color:var(--muted); list-style:disc; }
 .cc-identical-list .cc-kind { display:inline-block; margin-right:6px; }
 .cc-identical-list .cc-name { font-size:11.5px; font-weight:500; color:var(--ink-2); margin-right:6px; }

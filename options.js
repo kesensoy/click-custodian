@@ -802,7 +802,8 @@ function showConflictView(plan) {
   renderIdenticalBanner(plan.identicals);
   const list = document.getElementById('import-conflict-list');
   list.innerHTML = plan.conflicts.map((c, i) => renderConflictRow(c, i)).join('');
-  updateBulkActiveState();
+  document.getElementById('import-bulk-skip').classList.remove('is-active');
+  document.getElementById('import-bulk-overwrite').classList.remove('is-active');
 }
 
 function renderIdenticalBanner(identicals) {
