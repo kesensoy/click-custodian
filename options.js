@@ -612,7 +612,7 @@ function filterRules(pageId, query) {
 
 // ---------- Reset / Import / Export ----------
 async function resetConfig() {
-  if (!confirm('Reset to defaults? This deletes your current rules and loads the bundled defaults.')) return;
+  if (!confirm('Replace current rules with the bundled defaults? Nothing is saved until you click Save changes.')) return;
   try {
     const response = await fetch(chrome.runtime.getURL('seed-examples.json'));
     const seed = await response.json();
@@ -620,15 +620,10 @@ async function resetConfig() {
       tabCloseRules: seed.tabCloseRules || [],
       buttonClickRules: seed.buttonClickRules || []
     };
-    await chrome.storage.sync.set({
-      tabCloseRules: rules.tabCloseRules,
-      buttonClickRules: rules.buttonClickRules
-    });
-    savedSnapshot = cloneRules(rules);
-    markClean();
     renderAll();
     refreshActiveJsonViews();
-    showStatus('Reset to defaults', 'success');
+    recomputeDirtyState();
+    showStatus('Loaded defaults — remember to save', 'success');
   } catch (error) {
     showStatus('Failed to load examples: ' + error.message, 'error');
   }
