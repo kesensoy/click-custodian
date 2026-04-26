@@ -802,6 +802,7 @@ function showConflictView(plan) {
   renderIdenticalBanner(plan.identicals);
   const list = document.getElementById('import-conflict-list');
   list.innerHTML = plan.conflicts.map((c, i) => renderConflictRow(c, i)).join('');
+  updateBulkActiveState();
 }
 
 function renderIdenticalBanner(identicals) {
@@ -914,6 +915,24 @@ function setRowResolution(idx, value) {
     side.classList.toggle('is-selected', isSel);
     side.setAttribute('aria-pressed', String(isSel));
   });
+  updateBulkActiveState();
+}
+
+function updateBulkActiveState() {
+  const list = document.getElementById('import-conflict-list');
+  const skipBtn = document.getElementById('import-bulk-skip');
+  const overwriteBtn = document.getElementById('import-bulk-overwrite');
+  if (!list || !skipBtn || !overwriteBtn) return;
+  const rows = list.querySelectorAll('.import-conflict-row');
+  let allSkip = rows.length > 0;
+  let allOverwrite = rows.length > 0;
+  rows.forEach(row => {
+    const res = row.dataset.resolution;
+    if (res !== 'skip') allSkip = false;
+    if (res !== 'overwrite') allOverwrite = false;
+  });
+  skipBtn.classList.toggle('is-active', allSkip);
+  overwriteBtn.classList.toggle('is-active', allOverwrite);
 }
 
 function handleConflictListClick(e) {

@@ -498,7 +498,10 @@ select.inline { appearance:none; -webkit-appearance:none; padding-right:22px; ba
 .cc-identical-list .cc-trigger { color:var(--faint); }
 .import-bulk { display:flex; align-items:center; gap:8px; margin:0 0 14px; padding:8px 10px; background:var(--cream-200); border:1px solid var(--border); border-radius:8px; }
 .import-bulk-label { font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-right:2px; }
-.import-bulk .btn.sm { height:24px; padding:0 10px; font-size:12px; }
+.import-bulk .btn.sm { height:24px; padding:0 10px; font-size:12px; border:1px solid var(--border); background:var(--white); color:var(--ink-2); }
+.import-bulk .btn.sm:hover { border-color:var(--border-strong); background:var(--cream); color:var(--text-strong); }
+.import-bulk .btn.sm.is-active { border-color:var(--cornflower); background:rgb(var(--cornflower-rgb) / .12); color:var(--text-strong); font-weight:600; box-shadow:0 0 0 1px rgb(var(--cornflower-rgb) / .35); }
+.import-bulk .btn.sm.is-active:hover { border-color:var(--cornflower); background:rgb(var(--cornflower-rgb) / .18); }
 .import-conflict-list { display:flex; flex-direction:column; gap:8px; max-height:50vh; overflow-y:auto; padding:2px; margin:0 0 16px; }
 .import-conflict-row { background:var(--white); border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:grid; grid-template-columns:1fr; gap:10px; }
 .cc-meta { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
