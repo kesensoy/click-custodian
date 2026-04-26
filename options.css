@@ -339,7 +339,7 @@ kbd { font-family:var(--mono); font-size:10.5px; padding:2px 6px; border:1px sol
 .btn.primary:hover { background:var(--btn-primary-bg-hover); border-color:var(--btn-primary-bg-hover); box-shadow:var(--btn-primary-shadow); }
 .btn.ghost { background:transparent; border-color:transparent; color:var(--muted); }
 .btn.ghost:hover { color:var(--text-strong); background:var(--cream-200); }
-.btn[aria-disabled="true"] { cursor:not-allowed; }
+.btn[aria-disabled="true"] { cursor:default; }
 .btn.ghost[aria-disabled="true"]:hover { color:var(--muted); background:transparent; }
 .btn .ic { width:14px; height:14px; }
 
