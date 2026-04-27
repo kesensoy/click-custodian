@@ -51,7 +51,7 @@ The seed is defined in `seed-examples.json` and only runs on first install. Upda
 Automatically close tabs whose URL matches a pattern, after a short countdown.
 
 | Field | Description | Example |
-|---|---|---|
+| --- | --- | --- |
 | URL Pattern | Pattern to match | `*://127.0.0.1:*/oauth/callback*` |
 | Match Type | `glob`, `regex`, `exact`, `contains` | `glob` |
 | Delay | Countdown duration (ms) | `3000` |
@@ -63,7 +63,7 @@ Press **Esc** during the countdown to cancel.
 Automatically click a button on matching pages.
 
 | Field | Description | Example |
-|---|---|---|
+| --- | --- | --- |
 | URL Pattern | Pattern to match | `*://sso.example.com/login*` |
 | Match Type | `glob`, `regex`, `exact`, `contains` | `glob` |
 | CSS Selector | Button selector | `button` |
