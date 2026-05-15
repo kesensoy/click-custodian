@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SPA URL Rewrite Fixture</title>
+</head>
+<body>
+  <h1>SPA URL Rewrite Fixture</h1>
+  <p id="status">loading</p>
+  <script>
+    // Simulate a real-world flow: page loads with extra query parameters,
+    // then ~600ms later strips them via history.replaceState. The clean URL
+    // should match a rule the dirty URL did not.
+    setTimeout(function () {
+      var clean = location.pathname; // strip query string
+      history.replaceState(null, '', clean);
+      document.getElementById('status').textContent = 'rewritten';
+    }, 600);
+  </script>
+</body>
+</html>
