@@ -310,6 +310,12 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
+// Clean up per-tab state when tabs close. Without this, lastLoadCompleteAt
+// would accumulate stale entries for the lifetime of the service worker.
+chrome.tabs.onRemoved.addListener((tabId) => {
+  lastLoadCompleteAt.delete(tabId);
+});
+
 // Listen for messages from content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   debugLog('DEBUG', 'Background received message:', request.action, 'from tab:', sender.tab?.id);
