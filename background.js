@@ -6,6 +6,13 @@ const processedTabs = new Set();
 const TAB_TRACKING_TIMEOUT = 5000; // Clear entries after 5 seconds
 const MAX_TRACKED_TABS = 100; // Emergency cleanup threshold
 
+// Per-tab timestamp of the last load-complete event we processed.
+// Used to suppress in-page URL changes that fire too soon after a load —
+// otherwise a permissive rule that matches both the dirty and rewritten
+// URL forms would fire twice for one user-visible navigation.
+const lastLoadCompleteAt = new Map(); // tabId -> ms epoch
+const POST_LOAD_QUIET_MS = 1500;
+
 // Toolbar icon swap: navy is the always-default brand icon. Moss / graphite /
 // ember tinted icons unlock only when the user has both starred the repo on
 // GitHub AND chosen a non-navy palette in settings. Star detection lives in
@@ -134,24 +141,58 @@ async function migrateLegacyShape() {
   debugLog('DEBUG', 'Migrated legacy storage shape to flat');
 }
 
-// Monitor tab updates
+// Monitor tab updates.
+//
+// We process two kinds of events:
+//   1. Full page loads (changeInfo.status === 'complete') — the original case.
+//   2. In-page URL changes (changeInfo.url is set, no status === 'complete')
+//      — fired when a page calls history.pushState / history.replaceState.
+//      Required for SPAs that rewrite the URL after load (e.g., stripping
+//      query parameters once an OAuth-style approval flow completes).
+//
+// We deliberately ignore events where status === 'loading', even when
+// changeInfo.url is set — a fresh navigation will produce a 'complete' event
+// shortly, and processing both would double-fire.
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  // Only process when page is fully loaded
-  if (changeInfo.status !== 'complete') return;
+  const isLoadComplete = changeInfo.status === 'complete';
+  const isInPageUrlChange = !!changeInfo.url && changeInfo.status !== 'loading' && !isLoadComplete;
+  if (!isLoadComplete && !isInPageUrlChange) return;
 
-  // Create unique key for this tab/URL combination
-  const tabKey = `${tabId}-${tab.url}`;
+  // For in-page changes the freshest URL is in changeInfo; fall back to tab.url.
+  const url = changeInfo.url || tab.url;
+  if (!url) return;
+
+  // Cooldown: suppress in-page URL changes that follow a load-complete too
+  // closely. Without this, a permissive pattern (e.g., a 'contains' rule that
+  // matches both URL variants) would fire once on the dirty load-complete and
+  // again on the post-load rewrite — most often unwanted, and for button-click
+  // rules potentially a double-click on a server action.
+  if (isInPageUrlChange) {
+    const lastLoadAt = lastLoadCompleteAt.get(tabId);
+    if (lastLoadAt && (Date.now() - lastLoadAt) < POST_LOAD_QUIET_MS) {
+      debugLog('DEBUG', 'Suppressing in-page URL change inside post-load quiet window:', { tabId, url });
+      return;
+    }
+  }
+
+  const trigger = isLoadComplete ? 'load' : 'spa';
+  const tabKey = `${tabId}-${url}`;
 
   // Skip if we've already processed this tab/URL
   if (processedTabs.has(tabKey)) {
-    debugLog('DEBUG', 'Already processed tab/URL, skipping duplicate event:', { tabId, url: tab.url });
+    debugLog('DEBUG', 'Already processed tab/URL, skipping duplicate event:', { tabId, url, trigger });
     return;
   }
 
   // Mark this tab/URL as processed
   processedTabs.add(tabKey);
   checkTrackingSetSize(); // Safety check
-  debugLog('DEBUG', 'Processing new tab/URL:', { tabId, url: tab.url, trackingSetSize: processedTabs.size });
+  debugLog('DEBUG', 'Processing new tab/URL:', { tabId, url, trigger, trackingSetSize: processedTabs.size });
+
+  // Record load-complete timestamp for the cooldown
+  if (isLoadComplete) {
+    lastLoadCompleteAt.set(tabId, Date.now());
+  }
 
   // Schedule cleanup of this entry
   setTimeout(() => {
@@ -159,7 +200,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     debugLog('DEBUG', 'Cleaned up tracking entry:', { tabKey, remainingEntries: processedTabs.size });
   }, TAB_TRACKING_TIMEOUT);
 
-  debugLog('DEBUG', 'Tab updated:', { tabId, url: tab.url, status: changeInfo.status });
+  debugLog('DEBUG', 'Tab updated:', { tabId, url, status: changeInfo.status, trigger });
 
   const { tabCloseRules = [], buttonClickRules = [] } = await chrome.storage.sync.get(['tabCloseRules', 'buttonClickRules']);
 
@@ -172,13 +213,13 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const allClickRules = buttonClickRules;
 
   // Check if tab matches any close rules
-  debugLog('DEBUG', 'Checking close rules against URL:', tab.url);
+  debugLog('DEBUG', 'Checking close rules against URL:', url);
   const matchingCloseRule = allCloseRules.find(rule => {
     if (rule.enabled === false) {
       debugLog('DEBUG', 'Close rule disabled:', rule.name);
       return false;
     }
-    const matches = matchesPattern(tab.url, rule.urlPattern, rule.matchType);
+    const matches = matchesPattern(url, rule.urlPattern, rule.matchType);
     debugLog('DEBUG', 'Close rule check:', {
       name: rule.name,
       pattern: rule.urlPattern,
@@ -189,13 +230,13 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   });
 
   // Check for button click rules
-  debugLog('DEBUG', 'Checking button click rules against URL:', tab.url);
+  debugLog('DEBUG', 'Checking button click rules against URL:', url);
   const matchingButtonRule = allClickRules.find(rule => {
     if (rule.enabled === false) {
       debugLog('DEBUG', 'Button rule disabled:', rule.name);
       return false;
     }
-    const matches = matchesPattern(tab.url, rule.urlPattern, rule.matchType);
+    const matches = matchesPattern(url, rule.urlPattern, rule.matchType);
     debugLog('DEBUG', 'Button rule check:', {
       name: rule.name,
       pattern: rule.urlPattern,
@@ -211,7 +252,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     debugLog('DEBUG', 'Conflict detected:', {
       closeRule: matchingCloseRule.name,
       buttonRule: matchingButtonRule.name,
-      url: tab.url
+      url
     });
 
     // Don't start countdown yet - let content script start it after button check fails
@@ -265,7 +306,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 
   if (!matchingCloseRule && !matchingButtonRule) {
-    debugLog('DEBUG', 'No rules matched for URL:', tab.url);
+    debugLog('DEBUG', 'No rules matched for URL:', url);
   }
 });
 
@@ -295,9 +336,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           rule: request.rule
         });
 
-        // After clicking button in conflict mode, allow re-processing of this URL
-        // This handles SPAs where the button click updates the page content but not the URL
-        // The next 'complete' event will re-evaluate and start countdown if button is gone
+        // After clicking button in conflict mode, allow re-processing of this URL.
+        // This handles two SPA cases: (1) the button click updates page content
+        // but not the URL — the next 'complete' event re-evaluates; (2) the
+        // button click triggers a history.replaceState that strips the URL —
+        // the in-page URL change branch re-evaluates against the new URL.
         const tab = sender.tab;
         if (tab && tab.url) {
           const tabKey = `${tab.id}-${tab.url}`;
