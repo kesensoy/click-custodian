@@ -34,7 +34,20 @@ function matchesPattern(url, pattern, matchType) {
  * would be dispatched. Tracks state via the passed-in `state` object so tests
  * can simulate sequences of events.
  *
- * After source changes land, this copy must be updated to match.
+ * When the source listener changes, update this copy to match.
+ *
+ * Deliberately omitted from the copy (kept simple for unit testability):
+ * - `checkTrackingSetSize()` emergency clear (defensive code path, not
+ *   load-bearing for any tested behavior)
+ * - `setTimeout` cleanup of `processedTabs` after `TAB_TRACKING_TIMEOUT`
+ *   (tests control state directly via `state.processedTabs`)
+ * - The `chrome.runtime.onMessage` round trip for conflict-mode button-click
+ *   results (covered indirectly by tests that hand-clear `state.lastLoadAt`
+ *   to simulate the post-click cleanup)
+ *
+ * The `trigger` field on emitted actions ('load' | 'spa') is a test-only
+ * affordance — the real listener logs the trigger via `debugLog` but does
+ * not include it in dispatched messages.
  */
 function processUpdate(state, tabId, changeInfo, tab, rules) {
   const POST_LOAD_QUIET_MS = 1500;

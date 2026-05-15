@@ -87,18 +87,20 @@ test.describe('SPA URL rewrite', () => {
     await page.goto(`${testServer.baseURL}${cleanPath}?spa=1&extra=2`);
     await page.waitForLoadState('load');
 
-    // Before the rewrite (which fires at ~600ms), no countdown should exist.
-    // Sample at ~300ms.
+    // Before the rewrite (which fires at ~600ms), no countdown should exist
+    // AND the URL should still carry its query string. Sample at ~300ms.
     await page.waitForTimeout(300);
     expect(await page.$('[data-click-custodian-countdown]')).toBeNull();
+    expect(page.url()).toContain('?spa=1&extra=2');
 
     // After the rewrite + cooldown, the countdown should appear.
     // Cooldown is 1500ms; rewrite at ~600ms; allow ~3s total.
     const countdown = await page.waitForSelector('[data-click-custodian-countdown]', { timeout: 5000 });
     expect(countdown).not.toBeNull();
 
-    // Sanity check: the URL the page actually has now is the clean one.
-    const currentUrl = page.url();
-    expect(currentUrl).toBe(exactPattern);
+    // The page URL must have been rewritten to the clean form by the time
+    // the countdown appeared — proves the countdown fired on the post-
+    // replaceState URL, not on the dirty initial load.
+    expect(page.url()).toBe(exactPattern);
   });
 });

@@ -357,6 +357,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // POST_LOAD_QUIET_MS would be suppressed and case (2) would never fire.
         const tab = sender.tab;
         if (tab && tab.url) {
+          // tab.url here is the pre-click URL — the dedup entry we want to
+          // clear was keyed off this URL, not whatever the page rewrites to.
           const tabKey = `${tab.id}-${tab.url}`;
           // Wait 100ms for button click to trigger page update, then clear tracking
           setTimeout(() => {
