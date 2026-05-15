@@ -59,14 +59,17 @@ function processUpdate(state, tabId, changeInfo, tab, rules) {
   if (state.processedTabs.has(tabKey)) return actions;
   state.processedTabs.add(tabKey);
 
-  if (isLoadComplete) {
-    state.lastLoadAt[tabId] = state.now;
-  }
-
   const closeRule = (rules.tabCloseRules || []).find(r =>
     r.enabled !== false && matchesPattern(url, r.urlPattern, r.matchType));
   const clickRule = (rules.buttonClickRules || []).find(r =>
     r.enabled !== false && matchesPattern(url, r.urlPattern, r.matchType));
+
+  // Cooldown is only entered when a rule actually fires on load-complete.
+  // Without a fired rule, there is no double-fire risk to suppress, and the
+  // in-page URL change branch must remain free to evaluate later events.
+  if (isLoadComplete && (closeRule || clickRule)) {
+    state.lastLoadAt[tabId] = state.now;
+  }
 
   if (closeRule && clickRule) {
     actions.push({ type: 'checkButtonExists', rule: clickRule, closeRuleDelay: closeRule.delay, trigger: isLoadComplete ? 'load' : 'spa' });
@@ -194,5 +197,30 @@ describe('SPA URL handling — listener logic', () => {
     state.now = 1000 + 5000;
     const a2 = processUpdate(state, 1, { url }, { url }, rules);
     expect(a2).toEqual([]);
+  });
+
+  test('cooldown is NOT set when no rule matches on load-complete', () => {
+    const rules = {
+      tabCloseRules: [{
+        id: 'r1', name: 'clean-only', enabled: true,
+        urlPattern: 'https://example.com/path', matchType: 'exact', delay: 3000
+      }],
+      buttonClickRules: []
+    };
+    const state = freshState(1000);
+
+    // Dirty URL doesn't match — no rule fires, cooldown should NOT engage
+    const dirty = 'https://example.com/path?a=1&b=2';
+    const a1 = processUpdate(state, 1, { status: 'complete' }, { url: dirty }, rules);
+    expect(a1).toEqual([]);
+
+    // In-page URL change WELL WITHIN the 1500ms window. Without the bug fix,
+    // this would be suppressed; with the fix, it must fire because no rule
+    // fired on load-complete to deduplicate against.
+    state.now = 1100; // only 100ms after load
+    const clean = 'https://example.com/path';
+    const a2 = processUpdate(state, 1, { url: clean }, { url: clean }, rules);
+    expect(a2).toHaveLength(1);
+    expect(a2[0]).toMatchObject({ type: 'startCountdown', delay: 3000, trigger: 'spa' });
   });
 });

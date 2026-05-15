@@ -189,11 +189,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   checkTrackingSetSize(); // Safety check
   debugLog('DEBUG', 'Processing new tab/URL:', { tabId, url, trigger, trackingSetSize: processedTabs.size });
 
-  // Record load-complete timestamp for the cooldown
-  if (isLoadComplete) {
-    lastLoadCompleteAt.set(tabId, Date.now());
-  }
-
   // Schedule cleanup of this entry
   setTimeout(() => {
     processedTabs.delete(tabKey);
@@ -303,6 +298,14 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
       action: 'clickButton',
       rule: matchingButtonRule
     });
+  }
+
+  // Cooldown gate: only engage when a rule actually fired on this load.
+  // Without a fired rule there is no double-fire risk to suppress, and an
+  // in-page URL change later in this navigation must remain free to evaluate
+  // (e.g., an exact-match rule matching only a cleaned post-replaceState URL).
+  if (isLoadComplete && (matchingCloseRule || matchingButtonRule)) {
+    lastLoadCompleteAt.set(tabId, Date.now());
   }
 
   if (!matchingCloseRule && !matchingButtonRule) {
