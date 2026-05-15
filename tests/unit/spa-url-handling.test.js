@@ -87,4 +87,29 @@ describe('SPA URL handling — listener logic', () => {
     const actions = processUpdate(state, 1, { status: 'complete' }, { url: 'https://example.com/' }, {});
     expect(Array.isArray(actions)).toBe(true);
   });
+
+  test('exact-match rule fires when in-page URL change reveals a match', () => {
+    const rules = {
+      tabCloseRules: [{
+        id: 'r1', name: 'clean-only', enabled: true,
+        urlPattern: 'https://example.com/path', matchType: 'exact', delay: 3000
+      }],
+      buttonClickRules: []
+    };
+    const state = freshState(1000);
+
+    // Initial load with extra query string — does not match
+    const dirty = 'https://example.com/path?a=1&b=2';
+    const a1 = processUpdate(state, 1, { status: 'complete' }, { url: dirty }, rules);
+    expect(a1).toEqual([]);
+
+    // Time advances past the post-load quiet period
+    state.now = 1000 + 2000;
+
+    // In-page URL change to clean URL — matches
+    const clean = 'https://example.com/path';
+    const a2 = processUpdate(state, 1, { url: clean }, { url: clean }, rules);
+    expect(a2).toHaveLength(1);
+    expect(a2[0]).toMatchObject({ type: 'startCountdown', delay: 3000, trigger: 'spa' });
+  });
 });
