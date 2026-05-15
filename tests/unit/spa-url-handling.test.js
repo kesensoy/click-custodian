@@ -131,4 +131,48 @@ describe('SPA URL handling — listener logic', () => {
     expect(b).toHaveLength(1);
     expect(b[0].trigger).toBe('load');
   });
+
+  test('cooldown suppresses in-page URL change shortly after load-complete', () => {
+    const rules = {
+      tabCloseRules: [{
+        id: 'r1', name: 'contains-rule', enabled: true,
+        urlPattern: '/path', matchType: 'contains', delay: 3000
+      }],
+      buttonClickRules: []
+    };
+    const state = freshState(1000);
+
+    const dirty = 'https://example.com/path?a=1';
+    const clean = 'https://example.com/path';
+
+    // Load-complete fires once (dirty matches contains)
+    const a1 = processUpdate(state, 1, { status: 'complete' }, { url: dirty }, rules);
+    expect(a1).toHaveLength(1);
+    expect(a1[0].trigger).toBe('load');
+
+    // 200ms later, replaceState rewrites to clean URL — also matches contains
+    state.now = 1200;
+    const a2 = processUpdate(state, 1, { url: clean }, { url: clean }, rules);
+    expect(a2).toEqual([]);
+  });
+
+  test('cooldown does NOT suppress in-page change after the quiet period', () => {
+    const rules = {
+      tabCloseRules: [{
+        id: 'r1', name: 'contains-rule', enabled: true,
+        urlPattern: '/page', matchType: 'contains', delay: 3000
+      }],
+      buttonClickRules: []
+    };
+    const state = freshState(1000);
+    const url1 = 'https://example.com/page';
+    const url2 = 'https://example.com/page/sub';
+
+    processUpdate(state, 1, { status: 'complete' }, { url: url1 }, rules);
+    // Past the quiet window
+    state.now = 1000 + 5000;
+    const a = processUpdate(state, 1, { url: url2 }, { url: url2 }, rules);
+    expect(a).toHaveLength(1);
+    expect(a[0].trigger).toBe('spa');
+  });
 });
