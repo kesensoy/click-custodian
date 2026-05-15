@@ -242,6 +242,16 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     return matches;
   });
 
+  // Cooldown gate: only engage when a rule actually fired on this load.
+  // Without a fired rule there is no double-fire risk to suppress, and an
+  // in-page URL change later in this navigation must remain free to evaluate
+  // (e.g., an exact-match rule matching only a cleaned post-replaceState URL).
+  // Placed before the conflict-detection branch so the conflict path also
+  // benefits from cooldown protection.
+  if (isLoadComplete && (matchingCloseRule || matchingButtonRule)) {
+    lastLoadCompleteAt.set(tabId, Date.now());
+  }
+
   // CONFLICT DETECTION: Both rules match
   if (matchingCloseRule && matchingButtonRule) {
     debugLog('DEBUG', 'Conflict detected:', {
@@ -298,14 +308,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
       action: 'clickButton',
       rule: matchingButtonRule
     });
-  }
-
-  // Cooldown gate: only engage when a rule actually fired on this load.
-  // Without a fired rule there is no double-fire risk to suppress, and an
-  // in-page URL change later in this navigation must remain free to evaluate
-  // (e.g., an exact-match rule matching only a cleaned post-replaceState URL).
-  if (isLoadComplete && (matchingCloseRule || matchingButtonRule)) {
-    lastLoadCompleteAt.set(tabId, Date.now());
   }
 
   if (!matchingCloseRule && !matchingButtonRule) {

@@ -1,5 +1,4 @@
 const { test: base, expect } = require('@playwright/test');
-const { createTestRules } = require('./helpers/rules');
 const path = require('path');
 const { chromium } = require('@playwright/test');
 const http = require('http');

@@ -223,4 +223,31 @@ describe('SPA URL handling — listener logic', () => {
     expect(a2).toHaveLength(1);
     expect(a2[0]).toMatchObject({ type: 'startCountdown', delay: 3000, trigger: 'spa' });
   });
+
+  test('conflict-mode load-complete engages cooldown for subsequent in-page change', () => {
+    const rules = {
+      tabCloseRules: [{
+        id: 'close', name: 'close', enabled: true,
+        urlPattern: '/path', matchType: 'contains', delay: 3000
+      }],
+      buttonClickRules: [{
+        id: 'click', name: 'click', enabled: true,
+        urlPattern: '/path', matchType: 'contains', selector: '#btn', delay: 200
+      }]
+    };
+    const state = freshState(1000);
+
+    const dirty = 'https://example.com/path?a=1';
+    // Both rules match dirty URL — conflict path fires checkButtonExists
+    const a1 = processUpdate(state, 1, { status: 'complete' }, { url: dirty }, rules);
+    expect(a1).toHaveLength(1);
+    expect(a1[0].type).toBe('checkButtonExists');
+
+    // 200ms later, replaceState rewrites to clean URL — both rules still match.
+    // Cooldown must suppress this in-page event to prevent double-dispatch.
+    state.now = 1200;
+    const clean = 'https://example.com/path';
+    const a2 = processUpdate(state, 1, { url: clean }, { url: clean }, rules);
+    expect(a2).toEqual([]);
+  });
 });
