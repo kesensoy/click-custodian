@@ -175,4 +175,24 @@ describe('SPA URL handling — listener logic', () => {
     expect(a).toHaveLength(1);
     expect(a[0].trigger).toBe('spa');
   });
+
+  test('same URL across complete + in-page event is deduped', () => {
+    const rules = {
+      tabCloseRules: [{
+        id: 'r1', name: 'exact', enabled: true,
+        urlPattern: 'https://example.com/page', matchType: 'exact', delay: 3000
+      }],
+      buttonClickRules: []
+    };
+    const state = freshState(1000);
+    const url = 'https://example.com/page';
+
+    const a1 = processUpdate(state, 1, { status: 'complete' }, { url }, rules);
+    expect(a1).toHaveLength(1);
+
+    // Same URL, in-page event — even past cooldown, dedup Set should suppress
+    state.now = 1000 + 5000;
+    const a2 = processUpdate(state, 1, { url }, { url }, rules);
+    expect(a2).toEqual([]);
+  });
 });
