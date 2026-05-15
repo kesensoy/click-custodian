@@ -352,12 +352,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // but not the URL — the next 'complete' event re-evaluates; (2) the
         // button click triggers a history.replaceState that strips the URL —
         // the in-page URL change branch re-evaluates against the new URL.
+        // We clear BOTH the per-URL dedup entry and the cooldown timestamp:
+        // without clearing the cooldown, an in-page URL change arriving within
+        // POST_LOAD_QUIET_MS would be suppressed and case (2) would never fire.
         const tab = sender.tab;
         if (tab && tab.url) {
           const tabKey = `${tab.id}-${tab.url}`;
           // Wait 100ms for button click to trigger page update, then clear tracking
           setTimeout(() => {
             processedTabs.delete(tabKey);
+            lastLoadCompleteAt.delete(tab.id);
             debugLog('DEBUG', `Cleared processed tab tracking for ${tabKey} after button click (allows re-evaluation)`);
           }, 100);
         }

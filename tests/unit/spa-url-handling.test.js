@@ -37,7 +37,6 @@ function matchesPattern(url, pattern, matchType) {
  * After source changes land, this copy must be updated to match.
  */
 function processUpdate(state, tabId, changeInfo, tab, rules) {
-  const TAB_TRACKING_TIMEOUT = 5000;
   const POST_LOAD_QUIET_MS = 1500;
   const actions = [];
 
@@ -85,12 +84,6 @@ function freshState(now = 1000) {
 }
 
 describe('SPA URL handling — listener logic', () => {
-  test('placeholder — scaffold compiles', () => {
-    const state = freshState();
-    const actions = processUpdate(state, 1, { status: 'complete' }, { url: 'https://example.com/' }, {});
-    expect(Array.isArray(actions)).toBe(true);
-  });
-
   test('exact-match rule fires when in-page URL change reveals a match', () => {
     const rules = {
       tabCloseRules: [{
@@ -249,5 +242,36 @@ describe('SPA URL handling — listener logic', () => {
     const clean = 'https://example.com/path';
     const a2 = processUpdate(state, 1, { url: clean }, { url: clean }, rules);
     expect(a2).toEqual([]);
+  });
+
+  test('clearing the cooldown timestamp lets in-page change fire within the original window', () => {
+    // Mirrors the conflict-mode button-click handler clearing lastLoadCompleteAt
+    // alongside the processedTabs entry, so a subsequent history.replaceState
+    // triggered by the click still re-evaluates against rules.
+    const rules = {
+      tabCloseRules: [{
+        id: 'r1', name: 'contains', enabled: true,
+        urlPattern: '/path', matchType: 'contains', delay: 3000
+      }],
+      buttonClickRules: []
+    };
+    const state = freshState(1000);
+    const dirty = 'https://example.com/path?a=1';
+    const clean = 'https://example.com/path';
+
+    // Load-complete fires once, sets cooldown
+    const a1 = processUpdate(state, 1, { status: 'complete' }, { url: dirty }, rules);
+    expect(a1).toHaveLength(1);
+    expect(state.lastLoadAt[1]).toBe(1000);
+
+    // Simulate the message-handler clearing both tracking entries
+    state.processedTabs.delete(`1-${dirty}`);
+    delete state.lastLoadAt[1];
+
+    // 200ms later (well inside original 1500ms cooldown), in-page URL change fires
+    state.now = 1200;
+    const a2 = processUpdate(state, 1, { url: clean }, { url: clean }, rules);
+    expect(a2).toHaveLength(1);
+    expect(a2[0].trigger).toBe('spa');
   });
 });
