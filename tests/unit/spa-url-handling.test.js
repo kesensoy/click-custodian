@@ -112,4 +112,23 @@ describe('SPA URL handling — listener logic', () => {
     expect(a2).toHaveLength(1);
     expect(a2[0]).toMatchObject({ type: 'startCountdown', delay: 3000, trigger: 'spa' });
   });
+
+  test('changeInfo.url with status=loading is ignored', () => {
+    const rules = {
+      tabCloseRules: [{
+        id: 'r1', name: 'any', enabled: true,
+        urlPattern: 'https://example.com/*', matchType: 'glob', delay: 3000
+      }],
+      buttonClickRules: []
+    };
+    const state = freshState();
+
+    const url = 'https://example.com/page';
+    const a = processUpdate(state, 1, { status: 'loading', url }, { url }, rules);
+    expect(a).toEqual([]);
+    // The same URL on `complete` SHOULD fire
+    const b = processUpdate(state, 1, { status: 'complete' }, { url }, rules);
+    expect(b).toHaveLength(1);
+    expect(b[0].trigger).toBe('load');
+  });
 });
