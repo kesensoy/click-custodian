@@ -226,7 +226,7 @@ Both `processedTabs` and `lastLoadCompleteAt` are in-memory state on the service
 **User-visible behavior:**
 
 - Narrow `exact` rules: behave the same as before for full loads, AND now correctly fire on URL rewrites that produce a match after the load completes (the canonical bug this fix addresses).
-- Permissive `contains` / broad `glob` rules: only fire once per user-visible navigation thanks to the cooldown. Subsequent in-page navigations to other matching URLs (more than 1.5s apart) DO fire — this is intentional, so SPA-routed apps that match a broad pattern still work.
+- Permissive `contains` / broad `glob` rules: the cooldown specifically covers the load-complete event plus any immediate post-load rewrite that arrives within `POST_LOAD_QUIET_MS`. In-page URL changes that arrive past the quiet window evaluate normally; per-URL dedup (`processedTabs`) still suppresses an exact-URL replay within `TAB_TRACKING_TIMEOUT`, but two SPA rewrites to *different* matching URLs more than the quiet window after the original load will each fire. This is intentional, so SPA-routed apps that match a broad pattern still work as the user navigates around inside them.
 
 **Code location:** `background.js` (top-of-file constants for `processedTabs`, `lastLoadCompleteAt`, `POST_LOAD_QUIET_MS`); the `chrome.tabs.onUpdated.addListener` body (the trigger detection, dedup, rule matching, and rule-conditional cooldown set); the `chrome.tabs.onRemoved.addListener` for cleanup.
 

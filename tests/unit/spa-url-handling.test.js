@@ -257,6 +257,28 @@ describe('SPA URL handling — listener logic', () => {
     expect(a2).toEqual([]);
   });
 
+  test('in-page URL change fires when no prior load-complete was seen (MV3 worker restart)', () => {
+    // MV3 service workers terminate when idle. If the worker restarts and the
+    // first event it sees for an existing tab is an in-page URL change, there
+    // is no `lastLoadAt` entry to gate against — the event must evaluate.
+    const rules = {
+      tabCloseRules: [{
+        id: 'r1', name: 'exact', enabled: true,
+        urlPattern: 'https://example.com/clean', matchType: 'exact', delay: 3000
+      }],
+      buttonClickRules: []
+    };
+    const state = freshState(1000);
+    const clean = 'https://example.com/clean';
+
+    // No prior processUpdate call — state.lastLoadAt is empty.
+    expect(state.lastLoadAt[1]).toBeUndefined();
+
+    const a = processUpdate(state, 1, { url: clean }, { url: clean }, rules);
+    expect(a).toHaveLength(1);
+    expect(a[0]).toMatchObject({ type: 'startCountdown', delay: 3000, trigger: 'spa' });
+  });
+
   test('clearing the cooldown timestamp lets in-page change fire within the original window', () => {
     // Mirrors the conflict-mode button-click handler clearing lastLoadCompleteAt
     // alongside the processedTabs entry, so a subsequent history.replaceState

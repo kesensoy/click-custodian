@@ -12,6 +12,11 @@ const MAX_TRACKED_TABS = 100; // Emergency cleanup threshold
 // URL forms would fire twice for one user-visible navigation.
 const lastLoadCompleteAt = new Map(); // tabId -> ms epoch
 const POST_LOAD_QUIET_MS = 1500;
+// Conflict-mode button click can trigger a near-immediate history.replaceState
+// from the page itself. Give Chrome a beat to fire that onUpdated event before
+// we clear the dedup/cooldown entries, so the re-evaluation actually sees the
+// rewritten URL rather than a stale state.
+const POST_CLICK_REEVAL_MS = 100;
 
 // Toolbar icon swap: navy is the always-default brand icon. Moss / graphite /
 // ember tinted icons unlock only when the user has both starred the repo on
@@ -159,7 +164,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (!isLoadComplete && !isInPageUrlChange) return;
 
   // For in-page changes the freshest URL is in changeInfo; fall back to tab.url.
-  const url = changeInfo.url || tab.url;
+  // `tab` is documented as always present but defensive callers in the wild have
+  // hit cases where it is undefined — the explicit `!url` guard below handles
+  // both that and the no-URL case.
+  const url = changeInfo.url || tab?.url;
   if (!url) return;
 
   // Cooldown: suppress in-page URL changes that follow a load-complete too
@@ -316,9 +324,14 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 });
 
 // Clean up per-tab state when tabs close. Without this, lastLoadCompleteAt
-// would accumulate stale entries for the lifetime of the service worker.
+// would accumulate stale entries for the lifetime of the service worker, and
+// stranded processedTabs keys could swallow a fire on a recycled tabId.
 chrome.tabs.onRemoved.addListener((tabId) => {
   lastLoadCompleteAt.delete(tabId);
+  const prefix = `${tabId}-`;
+  for (const key of processedTabs) {
+    if (key.startsWith(prefix)) processedTabs.delete(key);
+  }
 });
 
 // Listen for messages from content scripts
@@ -355,17 +368,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // We clear BOTH the per-URL dedup entry and the cooldown timestamp:
         // without clearing the cooldown, an in-page URL change arriving within
         // POST_LOAD_QUIET_MS would be suppressed and case (2) would never fire.
+        //
+        // The dedup entry could have been added under EITHER the pre-rewrite
+        // URL (load-complete trigger) OR the post-rewrite URL (SPA trigger), so
+        // clear all keys for this tab rather than guess which one.
         const tab = sender.tab;
-        if (tab && tab.url) {
-          // tab.url here is the pre-click URL — the dedup entry we want to
-          // clear was keyed off this URL, not whatever the page rewrites to.
-          const tabKey = `${tab.id}-${tab.url}`;
-          // Wait 100ms for button click to trigger page update, then clear tracking
+        if (tab && typeof tab.id === 'number') {
           setTimeout(() => {
-            processedTabs.delete(tabKey);
+            const prefix = `${tab.id}-`;
+            for (const key of processedTabs) {
+              if (key.startsWith(prefix)) processedTabs.delete(key);
+            }
             lastLoadCompleteAt.delete(tab.id);
-            debugLog('DEBUG', `Cleared processed tab tracking for ${tabKey} after button click (allows re-evaluation)`);
-          }, 100);
+            debugLog('DEBUG', `Cleared processed tab tracking for tab ${tab.id} after button click (allows re-evaluation)`);
+          }, POST_CLICK_REEVAL_MS);
         }
       })();
     } else {
