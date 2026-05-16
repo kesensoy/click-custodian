@@ -57,7 +57,7 @@ function processUpdate(state, tabId, changeInfo, tab, rules) {
   const isInPageUrlChange = !!changeInfo.url && changeInfo.status !== 'loading' && !isLoadComplete;
   if (!isLoadComplete && !isInPageUrlChange) return actions;
 
-  const url = changeInfo.url || tab.url;
+  const url = changeInfo.url || tab?.url;
   if (!url) return actions;
 
   if (isInPageUrlChange) {
@@ -230,7 +230,11 @@ describe('SPA URL handling — listener logic', () => {
     expect(a2[0]).toMatchObject({ type: 'startCountdown', delay: 3000, trigger: 'spa' });
   });
 
-  test('conflict-mode load-complete engages cooldown for subsequent in-page change', () => {
+  test('conflict-mode load-complete sets cooldown like single-rule load', () => {
+    // Note: this exercises the cooldown-setting path only. The post-click
+    // tracking cleanup lives in the chrome.runtime.onMessage handler, which
+    // this test copy intentionally does not model — see the test below for
+    // the simulated-cleanup case.
     const rules = {
       tabCloseRules: [{
         id: 'close', name: 'close', enabled: true,
@@ -308,5 +312,27 @@ describe('SPA URL handling — listener logic', () => {
     const a2 = processUpdate(state, 1, { url: clean }, { url: clean }, rules);
     expect(a2).toHaveLength(1);
     expect(a2[0].trigger).toBe('spa');
+  });
+
+  test('multi-URL-form cleanup removes every processedTabs entry for the tab', () => {
+    // The conflict-mode message handler clears processedTabs by tabId prefix
+    // because a single tab can have entries under multiple URLs across one
+    // navigation (load-complete URL + post-rewrite URL). This test models the
+    // prefix-delete behavior directly on the test-side state.
+    const state = freshState(1000);
+    state.processedTabs.add('1-https://example.com/path?a=1');
+    state.processedTabs.add('1-https://example.com/path');
+    state.processedTabs.add('2-https://other.com/page');
+    state.lastLoadAt[1] = 1000;
+
+    // Simulate the message-handler post-click prefix sweep
+    const prefix = `1-`;
+    for (const key of state.processedTabs) {
+      if (key.startsWith(prefix)) state.processedTabs.delete(key);
+    }
+    delete state.lastLoadAt[1];
+
+    expect([...state.processedTabs]).toEqual(['2-https://other.com/page']);
+    expect(state.lastLoadAt[1]).toBeUndefined();
   });
 });

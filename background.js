@@ -163,10 +163,11 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const isInPageUrlChange = !!changeInfo.url && changeInfo.status !== 'loading' && !isLoadComplete;
   if (!isLoadComplete && !isInPageUrlChange) return;
 
-  // For in-page changes the freshest URL is in changeInfo; fall back to tab.url.
-  // `tab` is documented as always present but defensive callers in the wild have
-  // hit cases where it is undefined — the explicit `!url` guard below handles
-  // both that and the no-URL case.
+  // `changeInfo.url` wins when set — it's the freshest URL Chrome reports and
+  // is the one in-page rewrites populate. `tab.url` is the stable fallback for
+  // load-complete events that omit changeInfo.url. `tab` is documented as
+  // always present but defensive callers in the wild have hit cases where it
+  // is undefined — the `!url` guard below covers both that and a no-URL event.
   const url = changeInfo.url || tab?.url;
   if (!url) return;
 
@@ -323,15 +324,29 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
+// Clear all per-tab state — used by both onRemoved (tab gone for good) and
+// the conflict-mode post-click handler (let the tab re-evaluate).
+//
+// The dedup Set holds keys keyed by URL, and any single tab can have entries
+// under multiple URLs across a navigation (load-complete URL + post-rewrite
+// URL during the same session), so we iterate and delete by tabId prefix
+// rather than try to track every URL form.
+//
+// Spec-safe: ECMA-262 guarantees Set iteration order and that deletes during
+// iteration do not skip subsequent entries.
+function clearProcessedTabsFor(tabId) {
+  const prefix = `${tabId}-`;
+  for (const key of processedTabs) {
+    if (key.startsWith(prefix)) processedTabs.delete(key);
+  }
+}
+
 // Clean up per-tab state when tabs close. Without this, lastLoadCompleteAt
 // would accumulate stale entries for the lifetime of the service worker, and
 // stranded processedTabs keys could swallow a fire on a recycled tabId.
 chrome.tabs.onRemoved.addListener((tabId) => {
   lastLoadCompleteAt.delete(tabId);
-  const prefix = `${tabId}-`;
-  for (const key of processedTabs) {
-    if (key.startsWith(prefix)) processedTabs.delete(key);
-  }
+  clearProcessedTabsFor(tabId);
 });
 
 // Listen for messages from content scripts
@@ -374,11 +389,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // clear all keys for this tab rather than guess which one.
         const tab = sender.tab;
         if (tab && typeof tab.id === 'number') {
+          // Best-effort cleanup: if the MV3 worker terminates within the next
+          // POST_CLICK_REEVAL_MS, this timer never fires and the dedup entries
+          // age out naturally via the per-key 5s TAB_TRACKING_TIMEOUT timer.
           setTimeout(() => {
-            const prefix = `${tab.id}-`;
-            for (const key of processedTabs) {
-              if (key.startsWith(prefix)) processedTabs.delete(key);
-            }
+            clearProcessedTabsFor(tab.id);
             lastLoadCompleteAt.delete(tab.id);
             debugLog('DEBUG', `Cleared processed tab tracking for tab ${tab.id} after button click (allows re-evaluation)`);
           }, POST_CLICK_REEVAL_MS);
