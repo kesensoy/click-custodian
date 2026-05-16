@@ -335,4 +335,41 @@ describe('SPA URL handling — listener logic', () => {
     expect([...state.processedTabs]).toEqual(['2-https://other.com/page']);
     expect(state.lastLoadAt[1]).toBeUndefined();
   });
+
+  test('post-click SPA event fires even when rule.delay < POST_CLICK_REEVAL_MS', () => {
+    // Regression: conflict-mode used to clear lastLoadAt 100ms after the
+    // click, so a button rule with rule.delay < 100ms could see its
+    // post-click history.replaceState event arrive while the cooldown was
+    // still active. The fix is to clear lastLoadAt SYNCHRONOUSLY at the
+    // moment buttonCheckResult arrives (i.e. before the click message even
+    // goes out), so the SPA event is never gated by a stale cooldown.
+    const rules = {
+      tabCloseRules: [{
+        id: 'close', name: 'close', enabled: true,
+        urlPattern: '/path', matchType: 'contains', delay: 3000
+      }],
+      buttonClickRules: [{
+        id: 'click', name: 'click', enabled: true,
+        urlPattern: '/path', matchType: 'contains', selector: '#btn', delay: 20
+      }]
+    };
+    const state = freshState(1000);
+
+    const dirty = 'https://example.com/path?a=1';
+    const a1 = processUpdate(state, 1, { status: 'complete' }, { url: dirty }, rules);
+    expect(a1[0].type).toBe('checkButtonExists');
+    expect(state.lastLoadAt[1]).toBe(1000); // cooldown engaged
+
+    // SYNCHRONOUS clear at buttonCheckResult time (the real listener does
+    // this before awaiting the clickButton message).
+    delete state.lastLoadAt[1];
+
+    // 30ms later (during the click delay) the page calls replaceState. With
+    // a stale cooldown this would be suppressed; with the sync clear it fires.
+    state.now = 1030;
+    const clean = 'https://example.com/path';
+    const a2 = processUpdate(state, 1, { url: clean }, { url: clean }, rules);
+    expect(a2).toHaveLength(1);
+    expect(a2[0].trigger).toBe('spa');
+  });
 });

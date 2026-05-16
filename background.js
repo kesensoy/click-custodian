@@ -69,6 +69,17 @@ function checkTrackingSetSize() {
   }
 }
 
+// Same parity guard for lastLoadCompleteAt: a tab leaks one entry per matching
+// load if onRemoved never fires (e.g., browser crash, MV3 worker restart). The
+// usual safety net is the worker termination cycle, but cap it explicitly so a
+// very long-lived worker can't accumulate without bound.
+function checkLastLoadCompleteAtSize() {
+  if (lastLoadCompleteAt.size > MAX_TRACKED_TABS) {
+    debugLog('WARN', 'lastLoadCompleteAt exceeded max size, clearing all entries:', lastLoadCompleteAt.size);
+    lastLoadCompleteAt.clear();
+  }
+}
+
 /**
  * Sends a message to a content script with automatic retry logic.
  * @param {number} tabId - The tab ID to send message to
@@ -259,6 +270,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // benefits from cooldown protection.
   if (isLoadComplete && (matchingCloseRule || matchingButtonRule)) {
     lastLoadCompleteAt.set(tabId, Date.now());
+    checkLastLoadCompleteAtSize();
   }
 
   // CONFLICT DETECTION: Both rules match
@@ -368,6 +380,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.found) {
       // Button exists - cancel countdown, proceed with click
       debugLog('DEBUG', `Button found for rule "${request.rule.name}" - cancelling countdown and clicking`);
+      const tab = sender.tab;
+
+      // SYNCHRONOUSLY clear the cooldown BEFORE the click goes out. If
+      // `rule.delay` is small (e.g. 20ms), the page's post-click
+      // history.replaceState can fire before any setTimeout-based cleanup
+      // would — and if the cooldown is still active when that SPA onUpdated
+      // event arrives, the re-evaluation is suppressed permanently (Chrome
+      // dispatches one event per replaceState call). Clearing here makes
+      // the unblock independent of `rule.delay`.
+      if (tab && typeof tab.id === 'number') {
+        lastLoadCompleteAt.delete(tab.id);
+      }
+
       (async () => {
         await sendMessageWithRetry(sender.tab.id, { action: 'abortClose' });
         await sendMessageWithRetry(sender.tab.id, {
@@ -375,26 +400,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           rule: request.rule
         });
 
-        // After clicking button in conflict mode, allow re-processing of this URL.
-        // This handles two SPA cases: (1) the button click updates page content
-        // but not the URL — the next 'complete' event re-evaluates; (2) the
-        // button click triggers a history.replaceState that strips the URL —
-        // the in-page URL change branch re-evaluates against the new URL.
-        // We clear BOTH the per-URL dedup entry and the cooldown timestamp:
-        // without clearing the cooldown, an in-page URL change arriving within
-        // POST_LOAD_QUIET_MS would be suppressed and case (2) would never fire.
-        //
-        // The dedup entry could have been added under EITHER the pre-rewrite
-        // URL (load-complete trigger) OR the post-rewrite URL (SPA trigger), so
-        // clear all keys for this tab rather than guess which one.
-        const tab = sender.tab;
+        // After clicking, also clear the per-URL dedup so case (1) — click
+        // updates page content but not the URL — re-fires a 'complete' event
+        // that re-evaluates. The dedup entry could have been added under
+        // EITHER the pre-rewrite URL (load-complete trigger) OR the
+        // post-rewrite URL (SPA trigger), so clear all keys for this tab.
+        // Best-effort: if the MV3 worker terminates within the next
+        // POST_CLICK_REEVAL_MS, this timer never fires and the dedup entries
+        // age out naturally via the per-key 5s TAB_TRACKING_TIMEOUT timer.
         if (tab && typeof tab.id === 'number') {
-          // Best-effort cleanup: if the MV3 worker terminates within the next
-          // POST_CLICK_REEVAL_MS, this timer never fires and the dedup entries
-          // age out naturally via the per-key 5s TAB_TRACKING_TIMEOUT timer.
           setTimeout(() => {
             clearProcessedTabsFor(tab.id);
-            lastLoadCompleteAt.delete(tab.id);
             debugLog('DEBUG', `Cleared processed tab tracking for tab ${tab.id} after button click (allows re-evaluation)`);
           }, POST_CLICK_REEVAL_MS);
         }

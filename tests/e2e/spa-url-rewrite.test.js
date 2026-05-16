@@ -93,8 +93,9 @@ test.describe('SPA URL rewrite', () => {
     expect(await page.$('[data-click-custodian-countdown]')).toBeNull();
     expect(page.url()).toContain('?spa=1&extra=2');
 
-    // After the rewrite + cooldown, the countdown should appear.
-    // Cooldown is 1500ms; rewrite at ~600ms; allow ~3s total.
+    // After the rewrite the countdown should appear shortly.
+    // No cooldown is engaged here (no rule fired on the dirty load-complete),
+    // so the SPA event fires immediately after the ~600ms replaceState.
     const countdown = await page.waitForSelector('[data-click-custodian-countdown]', { timeout: 5000 });
     expect(countdown).not.toBeNull();
 
