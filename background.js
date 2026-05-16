@@ -268,9 +268,16 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // (e.g., an exact-match rule matching only a cleaned post-replaceState URL).
   // Placed before the conflict-detection branch so the conflict path also
   // benefits from cooldown protection.
-  if (isLoadComplete && (matchingCloseRule || matchingButtonRule)) {
-    lastLoadCompleteAt.set(tabId, Date.now());
-    checkLastLoadCompleteAtSize();
+  if (isLoadComplete) {
+    if (matchingCloseRule || matchingButtonRule) {
+      lastLoadCompleteAt.set(tabId, Date.now());
+      checkLastLoadCompleteAtSize();
+    } else {
+      // No rule fires on this navigation. Clear any stale entry from the
+      // previous page on this tab so a SPA event on this fresh page isn't
+      // suppressed by an inherited cooldown window.
+      lastLoadCompleteAt.delete(tabId);
+    }
   }
 
   // CONFLICT DETECTION: Both rules match

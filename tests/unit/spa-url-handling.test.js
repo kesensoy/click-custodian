@@ -79,8 +79,14 @@ function processUpdate(state, tabId, changeInfo, tab, rules) {
   // Cooldown is only entered when a rule actually fires on load-complete.
   // Without a fired rule, there is no double-fire risk to suppress, and the
   // in-page URL change branch must remain free to evaluate later events.
-  if (isLoadComplete && (closeRule || clickRule)) {
-    state.lastLoadAt[tabId] = state.now;
+  // A no-match load also clears any stale cooldown from a previous page on
+  // the same tab — see the dedicated test for that scenario below.
+  if (isLoadComplete) {
+    if (closeRule || clickRule) {
+      state.lastLoadAt[tabId] = state.now;
+    } else {
+      delete state.lastLoadAt[tabId];
+    }
   }
 
   if (closeRule && clickRule) {
@@ -333,6 +339,36 @@ describe('SPA URL handling — listener logic', () => {
     delete state.lastLoadAt[1];
 
     expect([...state.processedTabs]).toEqual(['2-https://other.com/page']);
+    expect(state.lastLoadAt[1]).toBeUndefined();
+  });
+
+  test('stale cooldown from a prior page is cleared by a no-match load-complete on the same tab', () => {
+    // Regression: previously the cooldown engaged for page A could persist
+    // for 1.5s after the user navigated to page B if page B's load didn't
+    // match any rule. A SPA rewrite on page B within that window would have
+    // been suppressed by page A's stale cooldown. A no-match load now clears.
+    const rules = {
+      tabCloseRules: [{
+        id: 'r1', name: 'page-a-rule', enabled: true,
+        urlPattern: 'https://example.com/a', matchType: 'contains', delay: 3000
+      }],
+      buttonClickRules: []
+    };
+    const state = freshState(1000);
+
+    // Page A loads, rule matches, cooldown engaged.
+    const pageA = 'https://example.com/a';
+    const a1 = processUpdate(state, 1, { status: 'complete' }, { url: pageA }, rules);
+    expect(a1).toHaveLength(1);
+    expect(state.lastLoadAt[1]).toBe(1000);
+
+    // 500ms later (well inside the 1500ms window), user navigates to page B.
+    // No rule matches on page B's load. Old behavior: cooldown sticks.
+    // New behavior: cooldown cleared so any SPA event on page B can fire.
+    state.now = 1500;
+    const pageB = 'https://example.com/b';
+    const a2 = processUpdate(state, 1, { status: 'complete' }, { url: pageB }, rules);
+    expect(a2).toEqual([]);
     expect(state.lastLoadAt[1]).toBeUndefined();
   });
 
