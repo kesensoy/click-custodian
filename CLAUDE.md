@@ -195,26 +195,40 @@ The seed is not re-applied on update; only fresh installs see changes. Existing 
 - Shows "This tab will close in X seconds"
 - Button: "Cancel (Esc)"
 - Press Esc or click button to abort
+- Triggered on full page load AND on in-page URL changes (e.g., when a page rewrites its URL via `history.replaceState` post-load)
 
 **Button Click:**
 - Max 3s to find button (MutationObserver)
 - Green highlight when found
 - Configured delay, then click
 - Logs to console for debugging
+- Triggered on full page load AND on in-page URL changes
 
-## Duplicate Event Prevention
+## Event Handling and Duplicate Prevention
 
-**Issue:** Chrome fires multiple `chrome.tabs.onUpdated` events with `status: 'complete'` for the same page load in hash-routed SPAs.
+**The listener processes two kinds of `chrome.tabs.onUpdated` events:**
 
-**Solution:** Background service worker tracks processed tab/URL combinations in a Set:
-- Creates unique key: `${tabId}-${tab.url}`
-- Skips processing if key already in Set
-- Auto-cleanup after 5 seconds (prevents memory leaks)
-- Emergency cleanup at 100 entries (defensive programming)
+1. **Load-complete:** `changeInfo.status === 'complete'`. The classic "page finished loading" signal.
+2. **In-page URL change:** `changeInfo.url` is set, status is not `'loading'` and not `'complete'`. This is what Chrome reports when JS calls `history.pushState` or `history.replaceState` — required for SPAs that rewrite their URL after load (e.g., OAuth-style flows that strip query parameters post-approval).
 
-**Why needed:** On hash-routed SPAs (common in OAuth approval flows), duplicate events cause the same button to be clicked twice, which can trigger backend errors on the second click.
+Events with `status === 'loading'` are ignored — a fresh navigation will produce a `'complete'` shortly, and processing both would double-fire.
 
-**Code location:** `background.js:3-14` (tracking data structure), `background.js:71-95` (duplicate check)
+**Two layers of duplicate prevention:**
+
+- **Per-URL dedup Set (`processedTabs`):** keys are `${tabId}-${url}` (using `changeInfo.url` for in-page events, `tab.url` otherwise). The same URL won't be processed twice for the same tab within `TAB_TRACKING_TIMEOUT` (5s). Auto-cleaned after the timeout; emergency-cleared at `MAX_TRACKED_TABS` (100).
+
+- **Per-tab post-load cooldown (`POST_LOAD_QUIET_MS`, 1.5s):** the cooldown is **only engaged when a rule actually fires on the load-complete event**. When engaged, an in-page URL change that arrives within the window is suppressed. This prevents permissive patterns (e.g., a `contains` rule that matches both the dirty and rewritten URL forms) from firing twice across one user-visible navigation. Without the rule-fired condition, an exact-match rule that matches only the cleaned post-rewrite URL would never trigger — the dirty load would set the cooldown without firing anything, then suppress the in-page event that should have fired. A rule with `enabled: false` does not count as "firing" — disabled rules never engage the cooldown. A subsequent load-complete on the same tab that matches no rule clears any stale cooldown left over from a previous page, so a SPA event on the new page isn't suppressed by an inherited window. In conflict mode (close + button rules both match), the cooldown is cleared **synchronously** when `buttonCheckResult.found === true` arrives — before the click message goes out — so the page's own post-click `history.replaceState` can re-evaluate even when `rule.delay < POST_CLICK_REEVAL_MS`.
+
+Both `processedTabs` and `lastLoadCompleteAt` are in-memory state on the service worker. Manifest V3 service workers can be terminated when idle and restarted on demand; either or both maps reset on termination. This is acceptable: a fresh listener will see a fresh `'complete'` event for any active tab and re-derive its state.
+
+`lastLoadCompleteAt` is cleared when a tab closes (via `chrome.tabs.onRemoved`).
+
+**User-visible behavior:**
+
+- Narrow `exact` rules: behave the same as before for full loads, AND now correctly fire on URL rewrites that produce a match after the load completes (the canonical bug this fix addresses).
+- Permissive `contains` / broad `glob` rules: the cooldown specifically covers the load-complete event plus any immediate post-load rewrite that arrives within `POST_LOAD_QUIET_MS`. In-page URL changes that arrive past the quiet window evaluate normally; per-URL dedup (`processedTabs`) still suppresses an exact-URL replay within `TAB_TRACKING_TIMEOUT`, but two SPA rewrites to *different* matching URLs more than the quiet window after the original load will each fire. This is intentional, so SPA-routed apps that match a broad pattern still work as the user navigates around inside them.
+
+**Code location:** `background.js` (top-of-file constants for `processedTabs`, `lastLoadCompleteAt`, `POST_LOAD_QUIET_MS`); the `chrome.tabs.onUpdated.addListener` body (the trigger detection, dedup, rule matching, and rule-conditional cooldown set); the `chrome.tabs.onRemoved.addListener` for cleanup.
 
 ## Important Notes
 

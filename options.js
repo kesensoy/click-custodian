@@ -120,6 +120,11 @@ function updatePalettePopoverActive() {
 
 async function saveConfig() {
   if (!hasUnsavedChanges) return;
+  const regexCheck = validateRegexRules(rules);
+  if (!regexCheck.ok) {
+    showStatus(regexCheck.error, 'error');
+    return;
+  }
   try {
     await chrome.storage.sync.set({
       tabCloseRules: rules.tabCloseRules,
@@ -131,6 +136,25 @@ async function saveConfig() {
   } catch (error) {
     showStatus('Failed to save: ' + error.message, 'error');
   }
+}
+
+// Each `regex` rule must compile, otherwise it would silently fail at runtime
+// (background.js catches the SyntaxError and logs to the service-worker
+// console — invisible to users). Validating at save-time gives immediate
+// feedback. `glob`/`exact`/`contains` patterns can't fail, so skip them.
+function validateRegexRules(allRules) {
+  for (const kind of ['tabCloseRules', 'buttonClickRules']) {
+    const arr = allRules[kind] || [];
+    for (const r of arr) {
+      if (r.matchType !== 'regex') continue;
+      try {
+        new RegExp(r.urlPattern);
+      } catch (e) {
+        return { ok: false, error: `Invalid regex in "${r.name || r.id}": ${e.message}` };
+      }
+    }
+  }
+  return { ok: true };
 }
 
 async function saveTheme(theme) {
@@ -1359,6 +1383,13 @@ function validateRuleArray(parsed, kind) {
     }
     if (!validMatch.includes(r.matchType)) {
       return { ok: false, error: `Rule at index ${i}: "matchType" must be one of ${validMatch.join(', ')} (got "${r.matchType}").` };
+    }
+    if (r.matchType === 'regex') {
+      try {
+        new RegExp(r.urlPattern);
+      } catch (e) {
+        return { ok: false, error: `Rule at index ${i} ("${r.name || r.id || '?'}"): invalid regex pattern — ${e.message}` };
+      }
     }
     if (isClick && typeof r.selector !== 'string') {
       return { ok: false, error: `Rule at index ${i}: "selector" must be a string.` };
