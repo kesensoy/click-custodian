@@ -8,7 +8,7 @@
 
 # Click Custodian
 
-Chrome extension that auto-closes confirmation tabs and auto-clicks repetitive buttons.
+Browser extension that auto-closes confirmation tabs and auto-clicks repetitive buttons.
 
 ## What It Does
 
