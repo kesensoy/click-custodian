@@ -1,7 +1,7 @@
 # Click Custodian - AI Assistant Reference
 
 ## Project Purpose
-Chrome extension that auto-closes confirmation tabs and auto-clicks repetitive buttons for workflow automation.
+Browser extension that auto-closes confirmation tabs and auto-clicks repetitive buttons for workflow automation.
 
 ## Architecture
 
