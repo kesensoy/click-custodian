@@ -186,17 +186,21 @@ function isInPageUrlChangeEvent(changeInfo) {
 async function handleNavigationEvent(tabId, url, trigger) {
   if (!url) return;
 
-  // Cooldown: suppress in-page URL changes that follow a load-complete too
-  // closely. Without this, a permissive pattern (e.g., a 'contains' rule that
-  // matches both URL variants) would fire once on the dirty load-complete and
-  // again on the post-load rewrite — most often unwanted, and for button-click
-  // rules potentially a double-click on a server action.
-  if (trigger === 'spa') {
-    const lastLoadAt = lastLoadCompleteAt.get(tabId);
-    if (lastLoadAt && (Date.now() - lastLoadAt) < POST_LOAD_QUIET_MS) {
-      debugLog('DEBUG', 'Suppressing in-page URL change inside post-load quiet window:', { tabId, url });
-      return;
-    }
+  // Snapshot the post-load quiet window BEFORE this event can open it below.
+  // The window opens when a rule fires on a load-equivalent event ('load' or
+  // 'commit'); later events belonging to the SAME user-visible navigation must
+  // not re-fire inside it.
+  const lastLoadAt = lastLoadCompleteAt.get(tabId);
+  const withinQuietWindow = !!lastLoadAt && (Date.now() - lastLoadAt) < POST_LOAD_QUIET_MS;
+
+  // Cooldown: suppress in-page URL changes that follow a load too closely.
+  // Without this, a permissive pattern (e.g., a 'contains' rule that matches
+  // both URL variants) would fire once on the dirty load and again on the
+  // post-load rewrite — most often unwanted, and for button-click rules
+  // potentially a double-click on a server action.
+  if (trigger === 'spa' && withinQuietWindow) {
+    debugLog('DEBUG', 'Suppressing in-page URL change inside post-load quiet window:', { tabId, url });
+    return;
   }
 
   const isLoadComplete = trigger === 'load' || trigger === 'commit';
@@ -274,6 +278,18 @@ async function handleNavigationEvent(tabId, url, trigger) {
   // benefits from cooldown protection.
   if (isLoadComplete) {
     if (matchingCloseRule || matchingButtonRule) {
+      // A 'load' (tabs.onUpdated 'complete') that matches inside the window a
+      // leading 'commit' just opened is the trailing half of one navigation:
+      // webNavigation.onCommitted fired first at the committed URL, then the
+      // page rewrote the URL during parse, so 'complete' arrives at a
+      // *different* URL that dodges the per-URL dedup Set. The commit already
+      // fired this rule — suppress the duplicate. The leading 'commit' itself,
+      // and a standalone 'load' with no open window, fire normally. A no-match
+      // load still falls through to the clear-stale-cooldown branch below.
+      if (trigger === 'load' && withinQuietWindow) {
+        debugLog('DEBUG', 'Suppressing trailing load-complete duplicate inside post-commit window:', { tabId, url });
+        return;
+      }
       lastLoadCompleteAt.set(tabId, Date.now());
       checkLastLoadCompleteAtSize();
     } else {

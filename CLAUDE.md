@@ -45,7 +45,7 @@ See `fonts/README.md` for sources, versions, hashes, and update guidance.
 ### Background Service Worker (`background.js`)
 - On fresh install: seeds from `seed-examples.json` via `chrome.runtime.onInstalled` (`reason === 'install'`).
 - On extension update: runs one-shot legacy-shape migration if `defaultRules`/`userRules` keys exist; otherwise untouched.
-- Monitors tabs via `chrome.tabs.onUpdated`.
+- Monitors navigations via `chrome.tabs.onUpdated` (load-complete + in-page URL changes) and `chrome.webNavigation.onCommitted` (catches loads cancelled by protocol handoff); all funnel into `handleNavigationEvent`.
 - Reads flat `tabCloseRules` / `buttonClickRules` arrays when matching URLs.
 - Injects countdown overlay for tab close; sends messages to content script for button clicks.
 
@@ -120,17 +120,9 @@ Page complete → Poll for button (max 3s) → Found? → Green highlight → Wa
 
 ## Seed Example Rules
 
-Bundled in `seed-examples.json`, loaded once on first install:
+`seed-examples.json` is the authoritative seed (read it for current contents). It ships a few OAuth / device-code **tab-close** rules and zero **button-click** rules (users add their own), loaded once on fresh install.
 
-**Tab Close Rules:**
-1. Localhost OAuth callback: `*://localhost:*/*callback*` (glob, 3s delay)
-2. Azure AD device code approval: `https://login.microsoftonline.com/appverify` (exact, 3s delay)
-3. AWS CLI OAuth Callback: `*://127.0.0.1:*/oauth/callback*` (glob, 3s delay)
-
-**Button Click Rules:**
-(none shipped — users add their own)
-
-Users can delete seeded rules at any time; they are not restored on update. The "Reset to defaults" button reloads the seed destructively.
+Seeded rules can be deleted at any time and are not restored on update. The "Reset to defaults" button reloads the seed destructively.
 
 ## Theming
 
@@ -150,13 +142,11 @@ Four palettes live as CSS custom-property blocks: `navy` (default — bare `:roo
 The default palette is implied by absence of the `data-palette` attribute. The countdown overlay uses parallel `[data-cc-palette="..."]` blocks in `content.css` (separate prefix to avoid clobbering host-page tokens).
 
 ### Adding a Palette
-The palette name appears in **six** places — keep them in sync (the regression test in `tests/unit/palette-tokens.test.js` enforces this):
-1. `popup.css` — light + dark blocks
-2. `options.css` — light + dark blocks + `.pop-row[data-pal="..."] .sw { background:...; }` swatch
-3. `content.css` — overlay light + dark blocks (using `--cc-` prefix)
-4. `options.html` — `<button data-pal="..."` row in the picker dropdown
-5. `options.js`, `popup.js` — `VALID_PALETTES` / inline `valid` array
-6. `theme-init.js` — flash-prevention allowlist (inline OR-chain)
+The palette name must be added to **seven files**, each with light + dark variants — copy an existing non-navy palette (e.g. `moss`) as the template:
+
+`popup.css`, `options.css` (palette blocks + picker swatch), `content.css` (overlay blocks, `--cc-` prefix), `options.html` (picker row), `options.js` + `popup.js` (validator allowlists), `theme-init.js` (flash-prevention allowlist).
+
+`tests/unit/palette-tokens.test.js` enforces agreement across all seven — run it after any palette add/rename/remove. If this list and the test ever disagree, the test wins.
 
 ## Star CTA
 
@@ -195,40 +185,31 @@ The seed is not re-applied on update; only fresh installs see changes. Existing 
 - Shows "This tab will close in X seconds"
 - Button: "Cancel (Esc)"
 - Press Esc or click button to abort
-- Triggered on full page load AND on in-page URL changes (e.g., when a page rewrites its URL via `history.replaceState` post-load)
+- Triggered on full page load, on in-page URL changes (e.g., when a page rewrites its URL via `history.replaceState` post-load), AND on navigation commit (which fires even when a protocol handoff cancels the load before `complete` arrives)
 
 **Button Click:**
 - Max 3s to find button (MutationObserver)
 - Green highlight when found
 - Configured delay, then click
 - Logs to console for debugging
-- Triggered on full page load AND on in-page URL changes
+- Triggered on full page load, on in-page URL changes, AND on navigation commit (see Event Handling below)
 
 ## Event Handling and Duplicate Prevention
 
-**The listener processes two kinds of `chrome.tabs.onUpdated` events:**
+Three event sources funnel into one handler, `handleNavigationEvent(tabId, url, trigger)`:
 
-1. **Load-complete:** `changeInfo.status === 'complete'`. The classic "page finished loading" signal.
-2. **In-page URL change:** `changeInfo.url` is set, status is not `'loading'` and not `'complete'`. This is what Chrome reports when JS calls `history.pushState` or `history.replaceState` — required for SPAs that rewrite their URL after load (e.g., OAuth-style flows that strip query parameters post-approval).
+- **`load`** — `chrome.tabs.onUpdated`, `status === 'complete'`. The classic "page finished loading" signal.
+- **`spa`** — `chrome.tabs.onUpdated`, `changeInfo.url` set (status neither `'loading'` nor `'complete'`). What Chrome reports for `history.pushState`/`replaceState`; required for SPAs and OAuth flows that rewrite the URL after load.
+- **`commit`** — `chrome.webNavigation.onCommitted` (main frame, `http(s)` only). Fires earlier than `'complete'`, and — crucially — still fires when a page hands off to a custom-protocol URL during parse, which cancels the load lifecycle so `'complete'` never arrives. This is *why* the content script injects at `document_start` and the manifest holds the `webNavigation` permission.
 
-Events with `status === 'loading'` are ignored — a fresh navigation will produce a `'complete'` shortly, and processing both would double-fire.
+`load` and `commit` are load-complete-equivalent; `spa` is not. (`status === 'loading'` events are ignored — a `'complete'` follows shortly.)
 
-**Two layers of duplicate prevention:**
+**The invariant:** one user-visible navigation fires each matched rule exactly once. Two mechanisms defend it:
 
-- **Per-URL dedup Set (`processedTabs`):** keys are `${tabId}-${url}` (using `changeInfo.url` for in-page events, `tab.url` otherwise). The same URL won't be processed twice for the same tab within `TAB_TRACKING_TIMEOUT` (5s). Auto-cleaned after the timeout; emergency-cleared at `MAX_TRACKED_TABS` (100).
+- **Per-URL dedup** (`processedTabs`, keyed `${tabId}-${url}`, expires after `TAB_TRACKING_TIMEOUT`) — catches a `commit`→`complete` pair that deliver the *same* URL (the common case).
+- **Rule-fired post-load quiet window** (`lastLoadCompleteAt`, `POST_LOAD_QUIET_MS`) — catches same-navigation re-fires that dedup misses: a post-load `spa` rewrite, and the trailing `complete` of a commit whose URL was rewritten *during parse* (different URL → dedup misses it → would otherwise double-fire, e.g. a double-click on a server action). The window opens *only when a rule actually fires*, so an `exact` rule matching only a cleaned post-rewrite URL still triggers.
 
-- **Per-tab post-load cooldown (`POST_LOAD_QUIET_MS`, 1.5s):** the cooldown is **only engaged when a rule actually fires on the load-complete event**. When engaged, an in-page URL change that arrives within the window is suppressed. This prevents permissive patterns (e.g., a `contains` rule that matches both the dirty and rewritten URL forms) from firing twice across one user-visible navigation. Without the rule-fired condition, an exact-match rule that matches only the cleaned post-rewrite URL would never trigger — the dirty load would set the cooldown without firing anything, then suppress the in-page event that should have fired. A rule with `enabled: false` does not count as "firing" — disabled rules never engage the cooldown. A subsequent load-complete on the same tab that matches no rule clears any stale cooldown left over from a previous page, so a SPA event on the new page isn't suppressed by an inherited window. In conflict mode (close + button rules both match), the cooldown is cleared **synchronously** when `buttonCheckResult.found === true` arrives — before the click message goes out — so the page's own post-click `history.replaceState` can re-evaluate even when `rule.delay < POST_CLICK_REEVAL_MS`.
-
-Both `processedTabs` and `lastLoadCompleteAt` are in-memory state on the service worker. Manifest V3 service workers can be terminated when idle and restarted on demand; either or both maps reset on termination. This is acceptable: a fresh listener will see a fresh `'complete'` event for any active tab and re-derive its state.
-
-`lastLoadCompleteAt` is cleared when a tab closes (via `chrome.tabs.onRemoved`).
-
-**User-visible behavior:**
-
-- Narrow `exact` rules: behave the same as before for full loads, AND now correctly fire on URL rewrites that produce a match after the load completes (the canonical bug this fix addresses).
-- Permissive `contains` / broad `glob` rules: the cooldown specifically covers the load-complete event plus any immediate post-load rewrite that arrives within `POST_LOAD_QUIET_MS`. In-page URL changes that arrive past the quiet window evaluate normally; per-URL dedup (`processedTabs`) still suppresses an exact-URL replay within `TAB_TRACKING_TIMEOUT`, but two SPA rewrites to *different* matching URLs more than the quiet window after the original load will each fire. This is intentional, so SPA-routed apps that match a broad pattern still work as the user navigates around inside them.
-
-**Code location:** `background.js` (top-of-file constants for `processedTabs`, `lastLoadCompleteAt`, `POST_LOAD_QUIET_MS`); the `chrome.tabs.onUpdated.addListener` body (the trigger detection, dedup, rule matching, and rule-conditional cooldown set); the `chrome.tabs.onRemoved.addListener` for cleanup.
+This logic is subtle — rule-fired gating, no-match-clears-stale-window, conflict-mode synchronous clear, and MV3 worker restarts all factor in. **The authoritative explanation lives where it can't silently drift:** the inline comments in `background.js` (`handleNavigationEvent` and the two listener bodies) and the named cases in `tests/unit/spa-url-handling.test.js`. Read that test file as the case catalog before changing this logic.
 
 ## Important Notes
 
@@ -288,7 +269,7 @@ Both `processedTabs` and `lastLoadCompleteAt` are in-memory state on the service
 
 **Unit tests (Jest + jsdom):** `npm run test:unit`
 - Source files don't export functions, so unit tests copy the function under test into the test file (see `tests/unit/pattern-matching.test.js` for the canonical pattern).
-- `tests/unit/palette-tokens.test.js` is a regression test that enforces palette-name agreement across all six surfaces — run it after any palette add/rename/remove.
+- `tests/unit/palette-tokens.test.js` is a regression test that enforces palette-name agreement across all seven surfaces — run it after any palette add/rename/remove.
 - `tests/unit/star-detection.test.js` covers the GitHub star form selector and the URL guard predicates.
 
 **E2E (Playwright):** `npm run test:e2e`

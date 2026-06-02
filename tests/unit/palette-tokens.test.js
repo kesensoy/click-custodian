@@ -1,10 +1,10 @@
 /**
  * Regression tests for the palette catalog.
  *
- * These guard against accidental drift between the four surfaces that all
+ * These guard against accidental drift between the seven surfaces that all
  * have to agree on the palette list: popup.css, options.css, content.css,
- * popup.js (theme-sync validator), options.js (VALID_PALETTES) and
- * theme-init.js (flash-prevention allowlist).
+ * options.html (picker row), popup.js (theme-sync validator), options.js
+ * (VALID_PALETTES) and theme-init.js (flash-prevention allowlist).
  *
  * If you add or rename a palette, update the EXPECTED list below and the
  * corresponding token file fixtures the tests check.
