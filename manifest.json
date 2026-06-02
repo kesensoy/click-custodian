@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Click Custodian",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "author": "Kevin Esensoy",
   "description": "Auto-close confirmation tabs and auto-click repetitive buttons",
   "homepage_url": "https://github.com/kesensoy/click-custodian",
@@ -17,7 +17,8 @@
   "permissions": [
     "tabs",
     "storage",
-    "activeTab"
+    "activeTab",
+    "webNavigation"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -30,7 +31,7 @@
       "matches": ["<all_urls>"],
       "js": ["debug.js", "content.js"],
       "css": ["content.css"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     }
   ],
   "options_page": "options.html",
