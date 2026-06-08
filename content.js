@@ -478,7 +478,14 @@ function whenMountReady(fn) {
     }
   });
   observer.observe(document, { childList: true, subtree: true });
-  deadline = setTimeout(() => observer.disconnect(), 4000);
+  deadline = setTimeout(() => {
+    observer.disconnect();
+    // No mount point ever appeared (e.g. a load cancelled before <body> built).
+    // `fn` is intentionally not invoked — there's no DOM to mount into — but log
+    // it so this is distinguishable from "no rule matched" when debugging,
+    // rather than failing silently.
+    debugLog('DEBUG', 'whenMountReady: no DOM mount point after 4s; deferred action skipped');
+  }, 4000);
 }
 
 // Countdown management for tab closing

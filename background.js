@@ -190,6 +190,16 @@ async function handleNavigationEvent(tabId, url, trigger) {
   // The window opens when a rule fires on a load-equivalent event ('load' or
   // 'commit'); later events belonging to the SAME user-visible navigation must
   // not re-fire inside it.
+  //
+  // Timing assumption: this read is synchronous, before the `await` below. The
+  // trailing-load suppression relies on the leading 'commit' having set
+  // lastLoadCompleteAt before the trailing 'complete' reaches here. Chrome
+  // fires 'complete' only after a full page load — long after the commit's
+  // sub-ms storage round trip — so the trailing load reliably sees the open
+  // window. If a future refactor makes both events resolve in the same tick
+  // (e.g. synchronous mock storage in a test), the trailing load could snapshot
+  // a stale window and re-fire; per-URL dedup only catches same-URL pairs, not
+  // the rewritten-URL case this guard exists for, so keep this ordering.
   const lastLoadAt = lastLoadCompleteAt.get(tabId);
   const withinQuietWindow = !!lastLoadAt && (Date.now() - lastLoadAt) < POST_LOAD_QUIET_MS;
 
