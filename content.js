@@ -295,7 +295,7 @@ function showClickFeedback(selectedElement, allMatches = [], clickDelay = 200) {
       box-sizing: border-box;
     `;
 
-    document.body.appendChild(indicator);
+    (getMountPoint() || document.documentElement).appendChild(indicator);
     indicators.push(indicator);
   });
 
@@ -315,7 +315,7 @@ function showClickFeedback(selectedElement, allMatches = [], clickDelay = 200) {
       z-index: 999999;
       box-sizing: border-box;
     `;
-    document.body.appendChild(indicator);
+    (getMountPoint() || document.documentElement).appendChild(indicator);
     indicators.push(indicator);
   }
 
@@ -408,7 +408,7 @@ function waitForElements(selector, buttonText, timeout = 5000) {
       }
     });
 
-    observer.observe(document.body, {
+    observer.observe(getMountPoint() || document, {
       childList: true,
       subtree: true
     });
@@ -453,15 +453,62 @@ function applyOverlayAttributes(overlay, { resolvedTheme, palette, rawTheme }) {
   overlay.dataset.ccThemeMode = rawTheme;
 }
 
+// A node to append our overlay/indicators to. Normally <body>; but this
+// content script runs at document_start (so it can inject on loads that get
+// cancelled by an external/custom-protocol handoff before document_idle would
+// ever fire), and at that moment <body> — occasionally even <html> — may not
+// exist yet. Fall back to documentElement; the overlay is position:fixed so it
+// renders identically under <html>.
+function getMountPoint() {
+  return document.body || document.documentElement || null;
+}
+
+// Run `fn` as soon as a DOM mount point exists. Synchronous if one is already
+// present (the common case); otherwise observe `document` until <html>/<body>
+// appears — typically within a few ms — with a safety deadline so a load that
+// truly never builds a DOM doesn't leak the observer.
+function whenMountReady(fn) {
+  if (getMountPoint()) { fn(); return; }
+  let deadline = null;
+  const observer = new MutationObserver(() => {
+    if (getMountPoint()) {
+      observer.disconnect();
+      if (deadline) clearTimeout(deadline);
+      fn();
+    }
+  });
+  observer.observe(document, { childList: true, subtree: true });
+  deadline = setTimeout(() => {
+    observer.disconnect();
+    // No mount point ever appeared (e.g. a load cancelled before <body> built).
+    // `fn` is intentionally not invoked — there's no DOM to mount into — but log
+    // it so this is distinguishable from "no rule matched" when debugging,
+    // rather than failing silently.
+    debugLog('DEBUG', 'whenMountReady: no DOM mount point after 4s; deferred action skipped');
+  }, 4000);
+}
+
 // Countdown management for tab closing
 let countdownState = null;
 
 function startCountdown(delay) {
   debugLog('DEBUG', 'startCountdown called with delay:', delay);
 
-  // Check if countdown already exists
+  // Check if countdown already exists. Kept ABOVE the mount-point deferral so
+  // that two startCountdowns deferred while the DOM is still building (e.g. two
+  // events before <body> exists) collapse to a single overlay no matter the
+  // order their deferred callbacks run in.
   if (document.getElementById('click-custodian-overlay')) {
     debugLog('DEBUG', 'Countdown overlay already exists, skipping');
+    return;
+  }
+
+  // At document_start on a cancelled load there may be no node to mount to yet.
+  // Defer the whole routine until a mount point appears, then re-enter (the
+  // overlay-exists guard above makes re-entry safe).
+  if (!getMountPoint()) {
+    debugLog('DEBUG', 'No mount point yet, deferring startCountdown until DOM is ready');
+    whenMountReady(() => startCountdown(delay));
     return;
   }
 
@@ -498,8 +545,9 @@ function startCountdown(delay) {
     </div>
   `;
 
-  document.body.appendChild(overlay);
-  debugLog('DEBUG', 'Countdown overlay appended to body');
+  const mountPoint = getMountPoint();
+  mountPoint.appendChild(overlay);
+  debugLog('DEBUG', 'Countdown overlay appended to', mountPoint.tagName);
 
   // Apply theme + palette from extension settings. Fire-and-forget: storage
   // reads complete in a few ms, well before the slide-up animation settles.

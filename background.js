@@ -159,43 +159,61 @@ async function migrateLegacyShape() {
 
 // Monitor tab updates.
 //
-// We process two kinds of events:
-//   1. Full page loads (changeInfo.status === 'complete') — the original case.
-//   2. In-page URL changes (changeInfo.url is set, no status === 'complete')
+// We process three kinds of events:
+//   1. Full page loads (tabs.onUpdated, status === 'complete') — the original case.
+//   2. In-page URL changes (tabs.onUpdated, changeInfo.url set, no 'complete')
 //      — fired when a page calls history.pushState / history.replaceState.
 //      Required for SPAs that rewrite the URL after load (e.g., stripping
 //      query parameters once an OAuth-style approval flow completes).
+//   3. Navigation commits (webNavigation.onCommitted, main frame only) —
+//      fires earlier than 'complete', and crucially still fires when a page
+//      synchronously hands off to an external/custom-protocol URL during parse
+//      (e.g. an app deep-link). Such a handoff cancels the load lifecycle, so
+//      'complete' never arrives — but commit already did. Per-tab+URL dedup
+//      (processedTabs) prevents double-fire when both commit and complete
+//      deliver the same URL.
 //
-// We deliberately ignore events where status === 'loading', even when
-// changeInfo.url is set — a fresh navigation will produce a 'complete' event
-// shortly, and processing both would double-fire.
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  const isLoadComplete = changeInfo.status === 'complete';
-  const isInPageUrlChange = !!changeInfo.url && changeInfo.status !== 'loading' && !isLoadComplete;
-  if (!isLoadComplete && !isInPageUrlChange) return;
+// For tabs.onUpdated we deliberately ignore status === 'loading' events even
+// when changeInfo.url is set — a fresh navigation produces 'complete' shortly
+// and processing both would double-fire.
+function isInPageUrlChangeEvent(changeInfo) {
+  if (!changeInfo.url) return false;
+  if (changeInfo.status === 'loading') return false;
+  if (changeInfo.status === 'complete') return false;
+  return true;
+}
 
-  // `changeInfo.url` wins when set — it's the freshest URL Chrome reports and
-  // is the one in-page rewrites populate. `tab.url` is the stable fallback for
-  // load-complete events that omit changeInfo.url. `tab` is documented as
-  // always present but defensive callers in the wild have hit cases where it
-  // is undefined — the `!url` guard below covers both that and a no-URL event.
-  const url = changeInfo.url || tab?.url;
+async function handleNavigationEvent(tabId, url, trigger) {
   if (!url) return;
 
-  // Cooldown: suppress in-page URL changes that follow a load-complete too
-  // closely. Without this, a permissive pattern (e.g., a 'contains' rule that
-  // matches both URL variants) would fire once on the dirty load-complete and
-  // again on the post-load rewrite — most often unwanted, and for button-click
-  // rules potentially a double-click on a server action.
-  if (isInPageUrlChange) {
-    const lastLoadAt = lastLoadCompleteAt.get(tabId);
-    if (lastLoadAt && (Date.now() - lastLoadAt) < POST_LOAD_QUIET_MS) {
-      debugLog('DEBUG', 'Suppressing in-page URL change inside post-load quiet window:', { tabId, url });
-      return;
-    }
+  // Snapshot the post-load quiet window BEFORE this event can open it below.
+  // The window opens when a rule fires on a load-equivalent event ('load' or
+  // 'commit'); later events belonging to the SAME user-visible navigation must
+  // not re-fire inside it.
+  //
+  // Timing assumption: this read is synchronous, before the `await` below. The
+  // trailing-load suppression relies on the leading 'commit' having set
+  // lastLoadCompleteAt before the trailing 'complete' reaches here. Chrome
+  // fires 'complete' only after a full page load — long after the commit's
+  // sub-ms storage round trip — so the trailing load reliably sees the open
+  // window. If a future refactor makes both events resolve in the same tick
+  // (e.g. synchronous mock storage in a test), the trailing load could snapshot
+  // a stale window and re-fire; per-URL dedup only catches same-URL pairs, not
+  // the rewritten-URL case this guard exists for, so keep this ordering.
+  const lastLoadAt = lastLoadCompleteAt.get(tabId);
+  const withinQuietWindow = !!lastLoadAt && (Date.now() - lastLoadAt) < POST_LOAD_QUIET_MS;
+
+  // Cooldown: suppress in-page URL changes that follow a load too closely.
+  // Without this, a permissive pattern (e.g., a 'contains' rule that matches
+  // both URL variants) would fire once on the dirty load and again on the
+  // post-load rewrite — most often unwanted, and for button-click rules
+  // potentially a double-click on a server action.
+  if (trigger === 'spa' && withinQuietWindow) {
+    debugLog('DEBUG', 'Suppressing in-page URL change inside post-load quiet window:', { tabId, url });
+    return;
   }
 
-  const trigger = isLoadComplete ? 'load' : 'spa';
+  const isLoadComplete = trigger === 'load' || trigger === 'commit';
   const tabKey = `${tabId}-${url}`;
 
   // Skip if we've already processed this tab/URL
@@ -215,7 +233,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     debugLog('DEBUG', 'Cleaned up tracking entry:', { tabKey, remainingEntries: processedTabs.size });
   }, TAB_TRACKING_TIMEOUT);
 
-  debugLog('DEBUG', 'Tab updated:', { tabId, url, status: changeInfo.status, trigger });
+  debugLog('DEBUG', 'Tab updated:', { tabId, url, trigger });
 
   const { tabCloseRules = [], buttonClickRules = [] } = await chrome.storage.sync.get(['tabCloseRules', 'buttonClickRules']);
 
@@ -270,6 +288,18 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // benefits from cooldown protection.
   if (isLoadComplete) {
     if (matchingCloseRule || matchingButtonRule) {
+      // A 'load' (tabs.onUpdated 'complete') that matches inside the window a
+      // leading 'commit' just opened is the trailing half of one navigation:
+      // webNavigation.onCommitted fired first at the committed URL, then the
+      // page rewrote the URL during parse, so 'complete' arrives at a
+      // *different* URL that dodges the per-URL dedup Set. The commit already
+      // fired this rule — suppress the duplicate. The leading 'commit' itself,
+      // and a standalone 'load' with no open window, fire normally. A no-match
+      // load still falls through to the clear-stale-cooldown branch below.
+      if (trigger === 'load' && withinQuietWindow) {
+        debugLog('DEBUG', 'Suppressing trailing load-complete duplicate inside post-commit window:', { tabId, url });
+        return;
+      }
       lastLoadCompleteAt.set(tabId, Date.now());
       checkLastLoadCompleteAtSize();
     } else {
@@ -341,6 +371,34 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (!matchingCloseRule && !matchingButtonRule) {
     debugLog('DEBUG', 'No rules matched for URL:', url);
   }
+}
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  const isLoadComplete = changeInfo.status === 'complete';
+  const isInPageUrlChange = isInPageUrlChangeEvent(changeInfo);
+  if (!isLoadComplete && !isInPageUrlChange) return;
+
+  // `changeInfo.url` wins when set — it's the freshest URL Chrome reports and
+  // is the one in-page rewrites populate. `tab.url` is the stable fallback for
+  // load-complete events that omit changeInfo.url. `tab` is documented as
+  // always present but defensive callers in the wild have hit cases where it
+  // is undefined — handleNavigationEvent guards against missing url.
+  const url = changeInfo.url || tab?.url;
+  const trigger = isLoadComplete ? 'load' : 'spa';
+  handleNavigationEvent(tabId, url, trigger);
+});
+
+// webNavigation.onCommitted catches the case where a page synchronously
+// invokes a custom-protocol URL during parse — Chrome cancels the page load
+// and tabs.onUpdated never fires 'complete', but commit already happened.
+// Main frame only — subframe commits are not relevant to URL-pattern rules.
+chrome.webNavigation.onCommitted.addListener((details) => {
+  if (details.frameId !== 0) return;
+  // Only http(s) — commit fires for about:blank, chrome-error://, etc. too,
+  // which no URL-pattern rule targets. Skipping them avoids a storage read per
+  // such commit and keeps non-http pages on the existing 'complete' path.
+  if (!/^https?:\/\//.test(details.url)) return;
+  handleNavigationEvent(details.tabId, details.url, 'commit');
 });
 
 // Clear all per-tab state — used by both onRemoved (tab gone for good) and

@@ -29,44 +29,40 @@ function matchesPattern(url, pattern, matchType) {
 }
 
 /**
- * COPIED FROM background.js — the onUpdated listener body, factored as a pure
- * function over its inputs. Fires `actions` array with each message that
- * would be dispatched. Tracks state via the passed-in `state` object so tests
- * can simulate sequences of events.
+ * COPIED FROM background.js — the shared `handleNavigationEvent` core plus the
+ * two listener entry points that feed it (`tabs.onUpdated` → `processUpdate`,
+ * and `webNavigation.onCommitted` → `processCommit`), factored as pure
+ * functions over the passed-in `state`. Returns an `actions` array of the
+ * messages that would be dispatched.
  *
  * When the source listener changes, update this copy to match.
  *
  * Deliberately omitted from the copy (kept simple for unit testability):
- * - `checkTrackingSetSize()` emergency clear (defensive code path, not
- *   load-bearing for any tested behavior)
+ * - `checkTrackingSetSize()` / `checkLastLoadCompleteAtSize()` emergency clears
+ *   (defensive code paths, not load-bearing for any tested behavior)
  * - `setTimeout` cleanup of `processedTabs` after `TAB_TRACKING_TIMEOUT`
  *   (tests control state directly via `state.processedTabs`)
  * - The `chrome.runtime.onMessage` round trip for conflict-mode button-click
  *   results (covered indirectly by tests that hand-clear `state.lastLoadAt`
  *   to simulate the post-click cleanup)
  *
- * The `trigger` field on emitted actions ('load' | 'spa') is a test-only
- * affordance — the real listener logs the trigger via `debugLog` but does
- * not include it in dispatched messages.
+ * The `trigger` field on emitted actions ('load' | 'spa' | 'commit') is a
+ * test-only affordance — the real listener logs the trigger via `debugLog` but
+ * does not include it in dispatched messages.
  */
-function processUpdate(state, tabId, changeInfo, tab, rules) {
+function handleNavigationEvent(state, tabId, url, trigger, rules) {
   const POST_LOAD_QUIET_MS = 1500;
   const actions = [];
-
-  const isLoadComplete = changeInfo.status === 'complete';
-  const isInPageUrlChange = !!changeInfo.url && changeInfo.status !== 'loading' && !isLoadComplete;
-  if (!isLoadComplete && !isInPageUrlChange) return actions;
-
-  const url = changeInfo.url || tab?.url;
   if (!url) return actions;
 
-  if (isInPageUrlChange) {
-    const lastLoadAt = state.lastLoadAt[tabId];
-    if (lastLoadAt && (state.now - lastLoadAt) < POST_LOAD_QUIET_MS) {
-      return actions;
-    }
-  }
+  // Snapshot the quiet window before this event can open it below.
+  const lastLoadAt = state.lastLoadAt[tabId];
+  const withinQuietWindow = !!lastLoadAt && (state.now - lastLoadAt) < POST_LOAD_QUIET_MS;
 
+  // Cooldown gates in-page URL changes that follow a load too closely.
+  if (trigger === 'spa' && withinQuietWindow) return actions;
+
+  const isLoadComplete = trigger === 'load' || trigger === 'commit';
   const tabKey = `${tabId}-${url}`;
   if (state.processedTabs.has(tabKey)) return actions;
   state.processedTabs.add(tabKey);
@@ -76,13 +72,16 @@ function processUpdate(state, tabId, changeInfo, tab, rules) {
   const clickRule = (rules.buttonClickRules || []).find(r =>
     r.enabled !== false && matchesPattern(url, r.urlPattern, r.matchType));
 
-  // Cooldown is only entered when a rule actually fires on load-complete.
-  // Without a fired rule, there is no double-fire risk to suppress, and the
-  // in-page URL change branch must remain free to evaluate later events.
-  // A no-match load also clears any stale cooldown from a previous page on
-  // the same tab — see the dedicated test for that scenario below.
+  // Cooldown is only entered when a rule actually fires on a load-equivalent
+  // event ('load' or 'commit'). A no-match load also clears any stale cooldown
+  // from a previous page on the same tab.
   if (isLoadComplete) {
     if (closeRule || clickRule) {
+      // A matching 'load' inside the window a leading 'commit' just opened is
+      // the trailing half of one navigation (URL rewritten during parse, so it
+      // dodges per-URL dedup) — the commit already fired. Suppress it. 'commit'
+      // and a standalone 'load' (no open window) fire normally.
+      if (trigger === 'load' && withinQuietWindow) return actions;
       state.lastLoadAt[tabId] = state.now;
     } else {
       delete state.lastLoadAt[tabId];
@@ -90,12 +89,30 @@ function processUpdate(state, tabId, changeInfo, tab, rules) {
   }
 
   if (closeRule && clickRule) {
-    actions.push({ type: 'checkButtonExists', rule: clickRule, closeRuleDelay: closeRule.delay, trigger: isLoadComplete ? 'load' : 'spa' });
+    actions.push({ type: 'checkButtonExists', rule: clickRule, closeRuleDelay: closeRule.delay, trigger });
     return actions;
   }
-  if (closeRule) actions.push({ type: 'startCountdown', delay: closeRule.delay, trigger: isLoadComplete ? 'load' : 'spa' });
-  if (clickRule) actions.push({ type: 'clickButton', rule: clickRule, trigger: isLoadComplete ? 'load' : 'spa' });
+  if (closeRule) actions.push({ type: 'startCountdown', delay: closeRule.delay, trigger });
+  if (clickRule) actions.push({ type: 'clickButton', rule: clickRule, trigger });
   return actions;
+}
+
+// tabs.onUpdated entry point — derives trigger ('load' | 'spa') and url.
+function processUpdate(state, tabId, changeInfo, tab, rules) {
+  const isLoadComplete = changeInfo.status === 'complete';
+  const isInPageUrlChange = !!changeInfo.url && changeInfo.status !== 'loading' && !isLoadComplete;
+  if (!isLoadComplete && !isInPageUrlChange) return [];
+
+  const url = changeInfo.url || tab?.url;
+  const trigger = isLoadComplete ? 'load' : 'spa';
+  return handleNavigationEvent(state, tabId, url, trigger, rules);
+}
+
+// webNavigation.onCommitted entry point — main-frame + http(s) guard.
+function processCommit(state, details, rules) {
+  if (details.frameId !== 0) return [];
+  if (!/^https?:\/\//.test(details.url)) return [];
+  return handleNavigationEvent(state, details.tabId, details.url, 'commit', rules);
 }
 
 function freshState(now = 1000) {
@@ -407,5 +424,35 @@ describe('SPA URL handling — listener logic', () => {
     const a2 = processUpdate(state, 1, { url: clean }, { url: clean }, rules);
     expect(a2).toHaveLength(1);
     expect(a2[0].trigger).toBe('spa');
+  });
+
+  test('commit at dirty URL then complete at rewritten URL fires a permissive rule only once', () => {
+    // OAuth-callback shape: webNavigation.onCommitted lands at the dirty URL,
+    // the page strips the query via history.replaceState DURING parse, and
+    // tabs.onUpdated 'complete' then arrives at the cleaned URL. A permissive
+    // 'contains' rule matches both forms. Because both events are load-
+    // equivalent, the 'complete' (trigger 'load') bypasses the spa-only
+    // cooldown and its cleaned URL is a fresh dedup key — so without the
+    // post-commit guard it would fire a second time (a double-click on the
+    // server action). The single navigation must fire exactly once.
+    const rules = {
+      tabCloseRules: [],
+      buttonClickRules: [{
+        id: 'click', name: 'oauth-continue', enabled: true,
+        urlPattern: '/callback', matchType: 'contains', selector: '#continue', delay: 200
+      }]
+    };
+    const state = freshState(1000);
+    const dirty = 'https://localhost:3000/callback?code=abc&state=xyz';
+    const clean = 'https://localhost:3000/callback';
+
+    const a1 = processCommit(state, { frameId: 0, tabId: 1, url: dirty }, rules);
+    expect(a1).toHaveLength(1);
+    expect(a1[0]).toMatchObject({ type: 'clickButton', trigger: 'commit' });
+
+    // Trailing 'complete' at the rewritten URL, 50ms later — suppressed.
+    state.now = 1050;
+    const a2 = processUpdate(state, 1, { status: 'complete' }, { url: clean }, rules);
+    expect(a2).toEqual([]);
   });
 });
