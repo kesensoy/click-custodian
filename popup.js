@@ -78,9 +78,13 @@ function renderVersion() {
   const el = document.getElementById('version-link');
   if (!el) return;
   const version = chrome.runtime?.getManifest?.()?.version ?? '';
-  el.textContent = version ? `v${version}` : '';
-  el.hidden = !version;
-  const label = version ? `Click Custodian v${version} on GitHub` : 'Click Custodian on GitHub';
+  // No version (e.g. getManifest unavailable): keep the link hidden. No
+  // aria-label needed — a hidden element is out of the a11y tree, so there's
+  // nothing to name. Mirrors options.js:renderVersion().
+  if (!version) { el.textContent = ''; el.hidden = true; return; }
+  el.textContent = `v${version}`;
+  el.hidden = false;
+  const label = `Click Custodian v${version} on GitHub`;
   el.setAttribute('aria-label', label);
   el.setAttribute('title', label);
 }

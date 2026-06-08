@@ -15,9 +15,10 @@ function renderVersionPopup() {
   const el = document.getElementById('version-link');
   if (!el) return;
   const version = chrome.runtime?.getManifest?.()?.version ?? '';
-  el.textContent = version ? `v${version}` : '';
-  el.hidden = !version;
-  const label = version ? `Click Custodian v${version} on GitHub` : 'Click Custodian on GitHub';
+  if (!version) { el.textContent = ''; el.hidden = true; return; }
+  el.textContent = `v${version}`;
+  el.hidden = false;
+  const label = `Click Custodian v${version} on GitHub`;
   el.setAttribute('aria-label', label);
   el.setAttribute('title', label);
 }
@@ -67,13 +68,14 @@ describe('popup version link (#version-link)', () => {
     expect(document.getElementById('version-link').textContent).toBe('v2.0.0');
   });
 
-  test('chrome.runtime / getManifest unavailable (what the optional chaining guards): hides, empty text, generic label', () => {
+  test('chrome.runtime / getManifest unavailable (what the optional chaining guards): hides, empty text, no label', () => {
     global.chrome = {}; // extension pages always have `chrome`; runtime may be absent
     renderVersionPopup();
     const el = document.getElementById('version-link');
     expect(el.textContent).toBe('');
     expect(el.hidden).toBe(true);
-    expect(el.getAttribute('aria-label')).toBe('Click Custodian on GitHub');
+    // Hidden ⇒ out of the a11y tree, so we don't label it (mirrors settings).
+    expect(el.getAttribute('aria-label')).toBeNull();
   });
 
   test('missing element: no throw', () => {
