@@ -44,7 +44,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   attachJsonEditorListeners();
   restoreActivePage();
   markClean();
+  renderVersion();
 });
+
+// Fills the sidebar brand subtitle's version link from the manifest (so the
+// shown string never drifts from manifest.json) and reveals it. The link's
+// href is static in the markup (the repo). chrome.runtime.getManifest may be
+// absent in test mocks, hence optional chaining; with no version we leave the
+// " · vX.Y.Z" fragment hidden rather than show an empty "·".
+function renderVersion() {
+  const el = document.getElementById('settings-version-link');
+  if (!el) return;
+  const wrap = el.closest('.brand-sub-version');
+  const version = chrome.runtime?.getManifest?.()?.version ?? '';
+  // No version (e.g. getManifest unavailable): keep the " · vX.Y.Z" fragment
+  // hidden. No aria-label needed — the wrapper is hidden, so the link is out of
+  // the a11y tree and has nothing to name.
+  if (!version) { if (wrap) wrap.hidden = true; return; }
+  el.textContent = `v${version}`;
+  const label = `Click Custodian v${version} on GitHub`;
+  el.setAttribute('aria-label', label);
+  el.setAttribute('title', label);
+  if (wrap) wrap.hidden = false;
+}
 
 window.addEventListener('beforeunload', (e) => {
   const hasJsonDirty = Object.values(jsonView).some(s => s.dirtyInView);

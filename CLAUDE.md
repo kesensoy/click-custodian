@@ -84,11 +84,15 @@ Page complete → Poll for button (max 3s) → Found? → Green highlight → Wa
 - Palette: Navy (default) / Moss / Graphite / Ember.
 - Selection persists in `chrome.storage.sync` (`theme`, `palette` keys) and mirrors to `localStorage` for flash-free reload (see Theming).
 
+**Version:**
+- The sidebar brand subtitle reads `settings · v<version>`. `options.js:renderVersion()` fills `#settings-version-link` live from `chrome.runtime.getManifest().version` and reveals the `.brand-sub-version` wrapper (kept hidden until then, so no empty "·" flashes / shows when no manifest is present). The link points at the repo root; the sidebar is always dark-navy in both themes, so it uses the same rgba-white treatment as the rest of the brand text.
+
 ### Popup (`popup.html/js`)
 - Stats card: "enabled / total" per rule type, tinted with `--warn` when any rule of that type is disabled.
 - Open Settings + Test on Current Tab actions.
 - Star CTA (top-right of brand row): see Star CTA section below.
-- Status footer: pulsing dot, transient success/error/warning/info messages auto-revert after 5s.
+- Status footer: pulsing dot + message on the left (`.status-left`), transient success/error/warning/info messages auto-revert after 5s.
+- Version link (right of the status footer): `popup.js:renderVersion()` reads the version live from `chrome.runtime.getManifest().version` (never hardcoded) into `#version-link`, which links to the repo root. Quiet `--faint` at rest, brightens to `--text-strong` with a `--cream-200` tint on hover (palette/theme-aware, same treatment as the Star CTA); hidden if no manifest version is available.
 
 ## Rule Schema
 

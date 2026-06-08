@@ -340,6 +340,32 @@ body {
 }
 /* The default, classless state keeps the pulsing cornflower dot (resting). */
 
+/* Version link — right-aligned in the status footer. Quiet --faint at rest,
+   brightens to --text-strong with a soft --cream-200 tint on hover (the same
+   treatment the Star CTA uses). All tokens are palette/theme-aware, so a
+   Moss-dark user gets Moss-dark colors, etc. Clicking opens the repo. The dot
+   + message are wrapped in .status-left so transient setStatus messages never
+   shift the version. */
+.status.with-version { justify-content:space-between; }
+.status.with-version .status-left {
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+}
+.ver-link {
+  font-family:var(--mono);
+  font-size:10.5px;
+  letter-spacing:.02em;
+  color:var(--faint);
+  text-decoration:none;
+  border-radius:5px;
+  padding:1px 4px;
+  flex:0 0 auto;
+  transition:color .15s ease, background .15s ease;
+}
+.ver-link:hover { color:var(--text-strong); background:var(--cream-200); }
+.ver-link:focus-visible { outline:2px solid var(--cornflower-600); outline-offset:1px; }
+
 @keyframes cc-status-pulse {
   0%, 100% { opacity:1; }
   50% { opacity:.45; }
