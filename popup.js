@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadStats();
   await hydrateStarCta();
   wireStarCta();
+  renderVersion();
 
   // Open settings
   document.getElementById('open-options').addEventListener('click', () => {
@@ -67,6 +68,23 @@ function renderRuleFraction(elementId, enabled, total) {
   el.classList.toggle('has-disabled', enabled < total);
 }
 
+// Renders the extension version (read live from the manifest) into the footer
+// link, so the displayed string never drifts from manifest.json. The link
+// itself is static in the markup (points at the repo); we only fill the text +
+// accessible name here. chrome.runtime.getManifest may be absent in test mocks,
+// hence the optional chaining; with no version we hide the link rather than
+// render an empty "v".
+function renderVersion() {
+  const el = document.getElementById('version-link');
+  if (!el) return;
+  const version = chrome.runtime?.getManifest?.()?.version ?? '';
+  el.textContent = version ? `v${version}` : '';
+  el.hidden = !version;
+  const label = version ? `Click Custodian v${version} on GitHub` : 'Click Custodian on GitHub';
+  el.setAttribute('aria-label', label);
+  el.setAttribute('title', label);
+}
+
 function matchesPattern(url, pattern, matchType) {
   if (!url) return false;
 
@@ -114,8 +132,10 @@ function setStatus(message, type) {
   if (msgEl) {
     msgEl.textContent = message;
   } else {
-    // Fallback in case markup changes: don't clobber a dot child if present.
-    statusEl.textContent = message;
+    // Fallback in case markup changes: write into .status-left so we don't
+    // clobber the sibling version link (.ver-link). Only fall back to the
+    // whole container if that wrapper is gone too.
+    (statusEl.querySelector('.status-left') || statusEl).textContent = message;
   }
 
   // Use theme-aware classes; see popup.css (.status.success/.error/.warning/.info).

@@ -137,6 +137,13 @@ kbd { font-family:var(--mono); font-size:10.5px; padding:2px 6px; border:1px sol
 .brand-mark svg { width:16px; height:16px; }
 .brand-title { font-family:var(--serif); font-weight:500; font-size:16px; letter-spacing:-.005em; color:#fff; line-height:1.1; }
 .brand-sub { font-family:var(--mono); font-size:10.5px; color:rgba(255,255,255,.42); margin-top:2px; letter-spacing:.01em; }
+/* Clickable version appended to the brand subtitle (filled live from the
+   manifest by options.js, hidden until then). The sidebar is always dark-navy
+   in both themes, so this reuses the brand-sub's rgba-white treatment — quiet
+   at rest, brightens on hover, like the popup's footer version. */
+.brand-sub .cc-ver { color:rgba(255,255,255,.42); text-decoration:none; border-radius:5px; padding:0 4px; transition:color .15s ease, background .15s ease; }
+.brand-sub .cc-ver:hover { color:#fff; background:rgba(255,255,255,.08); }
+.brand-sub .cc-ver:focus-visible { outline:2px solid var(--cornflower); outline-offset:1px; }
 
 .nav-section { padding:18px 14px 6px; font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.38); }
 .nav { display:flex; flex-direction:column; gap:1px; padding:0 8px; }
